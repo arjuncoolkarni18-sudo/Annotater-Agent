@@ -71,3 +71,14 @@ test('oversized requests are refused and database failures do not escape the han
  const {env}=setup(),cookie=await addSession(env);let response=await handleRequest(request('/api/profile',{method:'PUT',headers:{cookie,origin,'content-length':'9000000'},body:'{}'}),env);assert.equal(response.status,413);
  const broken={...env,DB:{prepare(){throw Error('internal-secret-detail');}}};response=await handleRequest(request('/api/session',withCookie(cookie)),broken);assert.equal(response.status,503);assert.doesNotMatch(await response.text(),/internal-secret-detail/);
 });
+
+test('signed-in home page and legacy editor route avoid the index.html canonical redirect loop',async()=>{
+ const {env}=setup(),cookie=await addSession(env),seen=[];
+ // Cloudflare canonicalizes /index.html back to /. The app must request /
+ // directly rather than relay that same redirect to a browser already on /.
+ env.ASSETS={fetch:async req=>{const url=new URL(req.url);seen.push(url.pathname);return url.pathname==='/index.html'?new Response(null,{status:308,headers:{Location:'/'}}):new Response('<main>Margin editor</main>',{headers:{'content-type':'text/html'}});}};
+ for(const route of ['/','/?v=reload','/studio.html']){
+  const response=await handleRequest(request(route,withCookie(cookie)),env);assert.equal(response.status,200);assert.equal(response.headers.get('location'),null);assert.match(await response.text(),/Margin editor/);assert.equal(response.headers.get('cache-control'),'private, no-store');
+ }
+ assert.deepEqual(seen,['/','/','/']);
+});

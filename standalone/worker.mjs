@@ -65,7 +65,9 @@ export async function handleRequest(request,env,fetcher=fetch){
   if(path==='/api/draft')return await draftRoute(request,env,user,fetcher);
   if(path.startsWith('/api/')||path.startsWith('/auth/'))return json({error:'Not found.'},404);
   if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed.'},405);
-  if(path==='/'||path==='/studio.html')url.pathname='/index.html';
+  // Let the assets router serve the canonical root. Fetching /index.html here
+  // redirects back to / under Cloudflare's default HTML handling and loops.
+  if(path==='/studio.html')url.pathname='/';
   const response=await env.ASSETS.fetch(new Request(url,request));
   const headers=new Headers(response.headers);headers.set('X-Content-Type-Options','nosniff');headers.set('Referrer-Policy','same-origin');headers.set('X-Frame-Options','DENY');
   if(headers.get('content-type')?.includes('text/html'))headers.set('Cache-Control','private, no-store');
