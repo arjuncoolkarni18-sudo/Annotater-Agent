@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f2ec">
+<meta name="description" content="Draw six samples of each character and export a personal handwriting profile for Margin.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Margin · Your handwriting</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#303a35;background:#f5f2ec;--line:#deddd4;--green:#334c40;--accent:#a6543c}*{box-sizing:border-box}body{margin:0}button,input{font:inherit}button{cursor:pointer}button:disabled{opacity:.4;cursor:default}button:focus-visible,input:focus-visible,canvas:focus-visible{outline:3px solid #a6543c;outline-offset:4px}button{border:1px solid var(--line);background:#fffefa;color:inherit;border-radius:9px;padding:10px 15px}button:hover:not(:disabled){border-color:#a5ad9d}.dark{background:var(--green);color:white;border-color:var(--green)}header{max-width:1240px;margin:auto;padding:24px 32px;display:flex;gap:20px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.brand{font:italic 32px Georgia,serif;letter-spacing:-1.5px}.brand span{color:var(--accent)}.offline{font-size:12px;color:#626b60;display:flex;align-items:center;gap:7px}.offline:before{content:'';width:7px;height:7px;border-radius:100%;background:#648461}main{max-width:1240px;margin:auto;padding:40px 32px 32px}.intro{display:flex;justify-content:space-between;gap:24px;align-items:start;margin-bottom:28px}.eyebrow{font-size:10px;letter-spacing:2px;color:#777969;font-weight:700}h1{font:42px/1.12 Georgia,serif;margin:9px 0 12px;letter-spacing:-1.4px}h1 em{color:var(--accent);font-weight:400}.intro p{font-size:14px;color:#697062;line-height:1.7;max-width:620px;margin:0}.actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}.workspace{display:grid;grid-template-columns:260px minmax(0,1fr);gap:22px}.panel{background:#fffefa;border:1px solid var(--line);border-radius:14px;padding:22px}.side-label{display:block;font-size:12px;font-weight:650;margin:0 0 9px}.name{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:#fff}.progress{margin:22px 0}.progress p{font-size:12px;line-height:1.6;margin:0 0 8px;color:#68705f}.track{height:5px;border-radius:4px;background:#e8e7df;overflow:hidden}.track div{height:100%;background:#6d8367;width:0}.tabs{display:flex;gap:4px;margin:20px 0 15px}.tabs button{flex:1;padding:8px 3px;font-size:12px}.tabs button[aria-pressed=true]{background:#eaf0e6;border-color:#9cae90}.letters{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}.letter{position:relative;min-height:39px;padding:6px;font:20px Georgia,serif}.letter small{position:absolute;bottom:1px;right:3px;font:8px system-ui;color:#748067}.letter[aria-pressed=true]{border-color:var(--green);background:var(--green);color:#fff}.letter[aria-pressed=true] small{color:#dce9d7}.letter.complete:not([aria-pressed=true]){background:#edf2e9;border-color:#c4d2ba}.side-note{font-size:12px;line-height:1.7;color:#73786b;margin:20px 0 0}.capture-head{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:18px}.capture-head h2{font:25px Georgia,serif;margin:0 0 8px}.capture-head p{font-size:12px;color:#73786b;margin:0;line-height:1.6}.current-char{color:var(--accent);font-size:32px}.samples{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.sample{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:white}.sample-title{padding:8px 10px;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#7a7e70;letter-spacing:.5px}.sample-status{color:#637c59}.sample canvas{width:100%;aspect-ratio:1;display:block;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}.sample-tools{display:flex;justify-content:space-between;gap:5px;padding:7px 9px;border-top:1px solid #eeeee8}.sample-tools button{font-size:10px;padding:5px 8px}.preview{margin-top:22px;padding-top:20px;border-top:1px solid var(--line)}.preview-head{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:10px}.preview-head label{font-size:11px;letter-spacing:1px;font-weight:650;color:#7a7e70}.preview-head button{font-size:11px;padding:6px 10px}.preview input{width:100%;border:1px solid var(--line);border-radius:7px;padding:10px 12px;background:white;font-size:13px}.preview canvas{display:block;max-width:100%;margin-top:12px}.preview p{font-size:11px;color:#787e70;line-height:1.6;margin:5px 0 0}.transfer{margin-top:24px;padding:19px 22px;border:1px solid #d7dece;border-radius:12px;background:#eef2e9}.transfer strong{font-size:13px}.transfer p{font-size:12px;line-height:1.8;color:#616b58;margin:6px 0 0}.save-status{font-size:12px;color:#65715d;line-height:1.6;margin:20px 0 0;min-height:20px}.save-status.error{color:#a04432}footer{font-size:11px;color:#7a7f72;padding:10px 0 0;line-height:1.7}.status-count{white-space:nowrap}#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);max-width:calc(100% - 30px);background:#303a35;color:white;border-radius:9px;padding:12px 18px;font-size:12px;box-shadow:0 6px 30px #0002;z-index:10}#toast[hidden]{display:none}@media(min-width:1100px){.sample canvas{max-height:175px;width:175px;margin:auto}}@media(max-width:850px){header{padding:16px 20px}main{padding:25px 20px}.intro{display:block}h1{font-size:36px}.actions{justify-content:flex-start;margin-top:18px}.workspace{grid-template-columns:1fr}.panel{padding:18px}.side{display:grid;grid-template-columns:1fr 1fr;gap:8px 22px}.side .tabs,.side .letters{grid-column:1/-1}.side .progress{margin:0}.side .tabs{margin:4px 0 6px}.side .letters{grid-template-columns:repeat(13,minmax(0,1fr));gap:4px}.side .side-note{grid-column:1/-1;margin:8px 0 0}.letter{min-height:34px;font-size:18px}.capture-head{margin-bottom:14px}}@media(max-width:500px){main{padding:22px 14px}header{padding:15px}.offline{font-size:10px}h1{font-size:32px}.side{display:block}.side .progress{margin:15px 0}.side .letters{grid-template-columns:repeat(9,minmax(0,1fr))}.side .tabs{margin-top:15px}.samples{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.capture-head{align-items:start}.capture-head button{font-size:11px;padding:9px}.capture-head h2{font-size:22px}.panel{padding:15px}.actions button{font-size:12px}.intro p{font-size:13px}.preview-head{gap:7px}}
+</style>
+</head>
+<body>
+<header><div class="brand">margin<span>·</span></div><div class="offline">Handwriting capture · saved on this device</div></header>
+<main>
+<div class="intro"><div><div class="eyebrow">YOUR HAND. YOUR DETAILS.</div><h1>A little less typing.<br><em>A little more you.</em></h1><p>Draw each character six different ways with your stylus. Download your handwriting backup when you’re ready, then import it into Margin on your other device.</p></div><div class="actions"><button id="importButton">Import backup</button><button class="dark" id="downloadButton">↓ Download handwriting</button><input id="importInput" type="file" accept=".json,application/json" hidden></div></div>
+<div class="workspace">
+<aside class="panel side"><div><label class="side-label" for="profileName">Profile name</label><input class="name" id="profileName" maxlength="40" placeholder="Your everyday handwriting" autocomplete="off"></div><div class="progress"><p><strong id="completeCount">0 characters complete</strong><br><span id="sampleCount">0 samples saved</span></p><div class="track" role="progressbar" aria-label="Handwriting library completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progressFill"></div></div></div><div class="tabs" role="group" aria-label="Character group"><button data-group="lower" aria-pressed="true">Lowercase</button><button data-group="upper" aria-pressed="false">Uppercase</button><button data-group="numbers" aria-pressed="false">123 & symbols</button></div><div class="letters" id="letters" role="group" aria-label="Choose a character"></div><p class="side-note">Write naturally. Small and large drawings will be calibrated to consistent letter sizes in your notes.</p></aside>
+<section class="panel"><div class="capture-head"><div><h2>Write <span class="current-char" id="currentChar">a</span> six ways.</h2><p>Use the guides. Each box holds one version.<br>Undo removes the last stroke in that box.</p></div><button id="nextButton">Next character →</button></div><div class="samples" id="samples"></div><div class="preview"><div class="preview-head"><label for="previewText">TRY YOUR HANDWRITING</label><button id="mixButton">Mix samples ↻</button></div><input id="previewText" maxlength="150" value="a little room for my thoughts" aria-label="Text to preview with your handwriting"><canvas id="previewCanvas" aria-label="Handwriting preview"></canvas><p id="previewInfo">Your saved samples appear here. Missing letters use a standard font.</p></div></section>
+</div>
+<p class="save-status" id="saveStatus" role="status" aria-live="polite">Opening your device copy…</p>
+<div class="transfer"><strong>Keep it, then bring it to Margin.</strong><p>1. Draw your samples. &nbsp; 2. Tap <b>Download handwriting</b> and save the JSON file in Files or Downloads. &nbsp; 3. Open Margin on your personal device → handwriting profile → <b>Import backup</b>.<br>This capture page needs no account or AI connection. Your drawings stay in this browser until you export them. Importing them into your signed-in Margin account enables account backup.</p></div>
+<footer>This page does not open PDFs or generate answers. A downloaded backup preserves your samples even if browser storage is cleared.</footer>
+</main><div id="toast" role="status" hidden></div>
+<script type="module">
+const GROUPS = {
+  lower: 'abcdefghijklmnopqrstuvwxyz',
+  upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  numbers: '0123456789.,!?;:\'"-()/%&',
+};
+const CHARACTERS = [...Object.values(GROUPS).join('')];
+function simplify(text) {
+  const replacements = [
+    [/\bin order to\b/gi,'to'],[/\bdue to the fact that\b/gi,'because'],
+    [/\bin spite of the fact that\b/gi,'although'],[/\bat this point in time\b/gi,'now'],
+    [/\bit is (?:important|essential) to (?:note|understand) that\s*/gi,''],
+    [/\bit (?:can be|should be) (?:noted|said|argued) that\s*/gi,''],
+    [/\bin the event that\b/gi,'if'],[/\bfor the purpose of\b/gi,'for'],
+    [/\ba large number of\b/gi,'many'],[/\ba majority of\b/gi,'most'],
+    [/\ba small number of\b/gi,'a few'],[/\bhas the ability to\b/gi,'can'],
+    [/\bhave the ability to\b/gi,'can'],[/\bprior to\b/gi,'before'],
+    [/\bhad the ability to\b/gi,'could'],
+    [/\bsubsequent to\b/gi,'after'],[/\bwith regard to\b/gi,'about'],
+    [/\butiliz(?:e|es|ing|ed)\b/gi,m=>({utilize:'use',utilizes:'uses',utilizing:'using',utilized:'used'}[m.toLowerCase()])],
+    [/\bapproximately\b/gi,'about'],[/\bnumerous\b/gi,'many'],
+    [/\bnevertheless\b/gi,'still'],[/\bconsequently\b/gi,'as a result'],
+    [/\bfurthermore\b/gi,'also'],[/\bmoreover\b/gi,'also'],
+    [/\bcommence\b/gi,'start'],[/\bdemonstrates\b/gi,'shows'],
+    [/\bfacilitate\b/gi,'help'],[/\bobtain\b/gi,'get'],
+  ];
+  let output=text.trim();
+  for(const [pattern,replacement] of replacements) output=output.replace(pattern,replacement);
+  return output.replace(/[ \t]+/g,' ').replace(/(^|[.!?]\s+)([a-z])/g,(_,a,b)=>a+b.toUpperCase());
+}
+function hashSeed(text){let h=2166136261;for(const ch of text)h=Math.imul(h^ch.charCodeAt(0),16777619);return h>>>0;}
+function randomGenerator(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+function chooseSample(samples, random, previous=-1){
+  const available=samples.map((v,i)=>v?.strokes?.length?i:-1).filter(i=>i>=0);
+  if(!available.length)return -1;
+  const options=available.length>1?available.filter(i=>i!==previous):available;
+  return options[Math.min(options.length-1,Math.floor(random()*options.length))];
+}
+function glyphBounds(sample){
+  const bounds={minX:160,maxX:0,minY:160,maxY:0};
+  for(const stroke of sample.strokes)for(const [x,y] of stroke){bounds.minX=Math.min(bounds.minX,x);bounds.maxX=Math.max(bounds.maxX,x);bounds.minY=Math.min(bounds.minY,y);bounds.maxY=Math.max(bounds.maxY,y);}
+  return bounds;
+}
+function validateProfile(value){
+  if(!value||value.version!==1||typeof value.name!=='string'||!value.samples||typeof value.samples!=='object')throw Error('This is not a Margin handwriting backup.');
+  const profile={version:1,name:value.name.slice(0,40),samples:{}};
+  for(const ch of CHARACTERS){
+    if(!Array.isArray(value.samples[ch]))continue;
+    profile.samples[ch]=value.samples[ch].slice(0,6).map(sample=>{
+      if(sample==null)return null;
+      if(!Array.isArray(sample.strokes)||sample.strokes.length>80)throw Error('A handwriting sample is invalid.');
+      const strokes=sample.strokes.map(stroke=>{
+        if(!Array.isArray(stroke)||stroke.length>3000)throw Error('A handwriting stroke is invalid.');
+        return stroke.map(point=>{
+          if(!Array.isArray(point)||point.length!==2||point.some(v=>!Number.isFinite(v)||v<0||v>160))throw Error('A handwriting point is invalid.');
+          return point;
+        });
+      }).filter(s=>s.length);
+      return strokes.length?{strokes}:null;
+    });
+  }
+  return profile;
+}
+function profileStats(profile){let completed=0,started=0,count=0;for(const ch of CHARACTERS){const n=(profile.samples[ch]||[]).filter(s=>s?.strokes?.length).length;count+=n;if(n)started++;if(n===6)completed++;}return{completed,started,count,total:CHARACTERS.length};}
+function coverage(text,profile){const chars=[...text].filter(ch=>!(/\s/.test(ch)));const total=chars.length;const covered=chars.filter(ch=>(profile.samples[ch]||[]).some(s=>s?.strokes?.length)).length;return{total,covered,missing:[...new Set(chars.filter(ch=>!(profile.samples[ch]||[]).some(s=>s?.strokes?.length)))]};}
+function placeInBounds(x,y,w,h,pageW,pageH){return{x:Math.max(0,Math.min(x,pageW-w)),y:Math.max(0,Math.min(y,pageH-h))};}
+function exportPlacement(viewport,x,y,w,h){const p=viewport.convertToPdfPoint(x,y+h),right=viewport.convertToPdfPoint(x+1,y+h);return{x:p[0],y:p[1],width:w*Math.hypot(right[0]-p[0],right[1]-p[1]),height:h*Math.hypot(right[0]-p[0],right[1]-p[1]),angle:Math.atan2(right[1]-p[1],right[0]-p[0])*180/Math.PI};}
+
+function characterProportions(ch){
+ if(ch==='.')return{height:.07,bottom:0,maxWidth:.18};
+ if(ch===',')return{height:.2,bottom:.15,maxWidth:.25};
+ if(ch==='\''||ch==='"')return{height:.22,bottom:-.65,maxWidth:.5};
+ if(ch==='-')return{height:.07,bottom:-.3,maxWidth:.6,targetWidth:.45};
+ if(ch===':')return{height:.43,bottom:-.05,maxWidth:.2};
+ if(ch===';')return{height:.58,bottom:.12,maxWidth:.25};
+ if(ch==='j')return{height:1.08,bottom:.24,maxWidth:.65};
+ if(/[gpqy]/.test(ch))return{height:.86,bottom:.24,maxWidth:1};
+ if(/[bdfhiklt]/.test(ch))return{height:.9,bottom:0,maxWidth:.95};
+ if(/[a-z]/.test(ch))return{height:.62,bottom:0,maxWidth:/[mw]/.test(ch)?1.25:1};
+ return{height:.9,bottom:0,maxWidth:/[MW%&]/.test(ch)?1.35:1.1};
+}
+function normalizedGlyphMetrics(ch,sample,size){
+ const bounds=glyphBounds(sample),rawH=bounds.maxY-bounds.minY,rawW=bounds.maxX-bounds.minX,p=characterProportions(ch);
+ let scaleY=size*p.height/Math.max(1,rawH),scaleX=scaleY;
+ if(p.targetWidth&&rawW>0){scaleX=size*p.targetWidth/rawW;scaleY=Math.min(scaleX,scaleY);}
+ scaleX=Math.min(scaleX,size*p.maxWidth/Math.max(1,rawW));
+ const inkWidth=rawW*scaleX,inkHeight=rawH*scaleY,top=size*p.bottom-inkHeight;
+ return{bounds,scaleX,scaleY,inkWidth,inkHeight,top,ascent:Math.max(0,-top),descent:Math.max(0,top+inkHeight),width:Math.max(size*.12,inkWidth)+size*.1};
+}
+
+function renderNote(text,{style='hand',fontFamily='sans',size=16,color='#303a50',variation=.35,seed=1,width=220,profile={samples:{}},handwriting}={}){
+  profile=handwriting||profile;
+  const random=randomGenerator(seed),last={},canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+  const padding=5,usable=width-padding*2,lines=[[]];let lineWidth=0;
+  ctx.font=style==='hand'?`${size*1.18}px StarterHand`:`${size}px ${{sans:'MarginSans',serif:'MarginSerif',mono:'MarginMono'}[fontFamily]||'MarginSans'}`;
+  const font=ctx.font;
+  function makeGlyph(ch){
+    if(ch===' ')return{ch,width:size*.29};
+    const variants=style==='hand'?(profile.samples[ch]||[]):[],idx=chooseSample(variants,random,last[ch]);last[ch]=idx;
+    const sample=idx<0?null:variants[idx];
+    if(sample){return{ch,sample,...normalizedGlyphMetrics(ch,sample,size),rotation:(random()-.5)*.035*variation,jitter:(random()-.5)*size*.05*variation};}
+    return{ch,width:ctx.measureText(ch).width+(style==='hand'?size*.02:0),rotation:style==='hand'?(random()-.5)*.04*variation:0,jitter:style==='hand'?(random()-.5)*size*.06*variation:0};
+  }
+  const words=text.replace(/\r/g,'').split(/(\n| +)/);
+  function newline(){lines.push([]);lineWidth=0;}
+  for(const word of words){
+    if(word==='\n'){newline();continue;}
+    const glyphs=[...word].map(makeGlyph),wordWidth=glyphs.reduce((s,g)=>s+g.width,0);
+    if(/^ +$/.test(word)&&lineWidth===0)continue;
+    if(lineWidth>0&&lineWidth+wordWidth>usable){newline();if(/^ +$/.test(word))continue;}
+    for(const glyph of glyphs){if(lineWidth+glyph.width>usable&&lineWidth>0)newline();lines.at(-1).push(glyph);lineWidth+=glyph.width;}
+  }
+  const allGlyphs=lines.flat(),ascent=Math.max(size*1.15,...allGlyphs.filter(g=>g.sample).map(g=>g.ascent+size*.08)),descent=Math.max(size*.3,...allGlyphs.filter(g=>g.sample).map(g=>g.descent+size*.08));
+  const lineHeight=Math.max(size*1.5,ascent+descent+size*.1),height=padding*2+ascent+descent+Math.max(0,lines.length-1)*lineHeight;
+  const ratio=3;canvas.width=Math.ceil(width*ratio);canvas.height=Math.ceil(height*ratio);ctx.scale(ratio,ratio);ctx.font=font;ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineCap='round';ctx.lineJoin='round';
+  let y=padding+ascent;
+  for(const line of lines){let x=padding+(style==='digital'?(random()-.5)*variation*1.1:0),lineJitter=style==='digital'?(random()-.5)*variation*.7:0;for(const g of line){
+    if(g.ch!==' '){ctx.save();ctx.translate(x,y+(g.jitter||0)+lineJitter);ctx.rotate(g.rotation||0);
+      if(g.sample){ctx.lineWidth=Math.max(.65,size*.06);const points=g.sample.strokes;for(const stroke of points){ctx.beginPath();for(let i=0;i<stroke.length;i++){const p=stroke[i],px=(p[0]-g.bounds.minX)*g.scaleX,py=(p[1]-g.bounds.minY)*g.scaleY+g.top;if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);}if(stroke.length===1){const p=stroke[0];ctx.lineTo((p[0]-g.bounds.minX)*g.scaleX+.1,(p[1]-g.bounds.minY)*g.scaleY+g.top+.1);}ctx.stroke();}}
+      else ctx.fillText(g.ch,0,0);
+      ctx.restore();
+    }x+=g.width;}y+=lineHeight;}
+  return{canvas,width,height,coverage:coverage(text,profile)};
+}
+
+function capturePoint(x,y,rect){
+ if(!Number.isFinite(rect.width)||!Number.isFinite(rect.height)||rect.width<=0||rect.height<=0)throw Error('The drawing area is not ready.');
+ return[Math.max(0,Math.min(160,(x-rect.left)*160/rect.width)),Math.max(0,Math.min(160,(y-rect.top)*160/rect.height))].map(v=>Math.round(v*100)/100);
+}
+function replaceCaptureSample(profile,char,slot,sample){
+ if(!CHARACTERS.includes(char)||!Number.isInteger(slot)||slot<0||slot>=6)throw Error('Choose a valid character and sample slot.');
+ const next={version:1,name:profile.name,samples:{...profile.samples,[char]:Array.from({length:6},(_,i)=>profile.samples[char]?.[i]||null)}};
+ next.samples[char][slot]=sample;return validateProfile(next);
+}
+function nextCaptureCharacter(profile,current,characters){
+ const start=characters.indexOf(current);for(let offset=1;offset<=characters.length;offset++){const ch=characters[(start+offset)%characters.length];if((profile.samples[ch]||[]).filter(s=>s?.strokes?.length).length<6)return ch;}
+ return characters[(start+1)%characters.length];
+}
+
+const $=id=>document.getElementById(id),STORAGE_KEY='margin.standalone.capture.v1';
+let profile={version:1,name:'',samples:{}},group='lower',active='a',seed=18,drag=null,lastPen=0,toastTimer,unsaved=false;
+const cards=[];
+function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6000);}
+function announce(message,error=false){$('saveStatus').textContent=message;$('saveStatus').classList.toggle('error',error);}
+function persist(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(profile));unsaved=false;announce('Saved on this device · download a backup before changing devices.');}catch{unsaved=true;announce('Browser saving is unavailable. Your samples are open here—download your handwriting to keep them.',true);}updateProgress();drawPreview();}
+function updateProgress(){const stats=profileStats(profile);$('completeCount').textContent=`${stats.completed} / ${stats.total} characters complete`;$('sampleCount').textContent=`${stats.count} samples saved`;$('progressFill').style.width=`${stats.count/(stats.total*6)*100}%`;document.querySelector('[role="progressbar"]').setAttribute('aria-valuenow',String(Math.round(stats.count/(stats.total*6)*100)));renderLetters();}
+function renderLetters(){const region=$('letters'),focused=document.activeElement?.dataset.char;region.replaceChildren();for(const ch of GROUPS[group]){const button=document.createElement('button'),count=(profile.samples[ch]||[]).filter(s=>s?.strokes?.length).length;button.className='letter'+(count===6?' complete':'');button.dataset.char=ch;button.setAttribute('aria-pressed',String(ch===active));button.setAttribute('aria-label',`${ch}: ${count} of six samples`);button.append(document.createTextNode(ch));const small=document.createElement('small');small.textContent=count?`${count}/6`:'';button.append(small);button.onclick=()=>choose(ch);region.append(button);if(focused===ch)button.focus();}}
+function choose(ch){if(drag)return;active=ch;$('currentChar').textContent=ch;renderLetters();renderSamples();}
+function renderSamples(){cards.forEach((card,i)=>{const sample=profile.samples[active]?.[i],has=!!sample?.strokes?.length;card.canvas.setAttribute('aria-label',`Draw ${active}, sample ${i+1}`);card.state.textContent=has?'Saved':'Empty';card.undo.disabled=!has;card.clear.disabled=!has;drawSample(card.canvas,sample?.strokes||[]);});}
+function drawSample(canvas,strokes){const ratio=Math.min(devicePixelRatio||1,3);canvas.width=160*ratio;canvas.height=160*ratio;const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);ctx.fillStyle='#fff';ctx.fillRect(0,0,160,160);ctx.lineWidth=.6;for(const y of [30,68,120,145]){ctx.strokeStyle=y===120?'#bcc8ae':'#e4e7df';ctx.setLineDash(y===68?[4,4]:[]);ctx.beginPath();ctx.moveTo(10,y);ctx.lineTo(150,y);ctx.stroke();}ctx.setLineDash([]);ctx.strokeStyle='#303a50';ctx.lineWidth=2.3;ctx.lineCap='round';ctx.lineJoin='round';for(const stroke of strokes){ctx.beginPath();stroke.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));if(stroke.length===1)ctx.lineTo(stroke[0][0]+.1,stroke[0][1]+.1);ctx.stroke();}}
+function sampleStrokes(slot){return structuredClone(profile.samples[active]?.[slot]?.strokes||[]);}
+function saveStrokes(slot,strokes){profile=replaceCaptureSample(profile,active,slot,strokes.length?{strokes}:null);persist();renderSamples();}
+function addPoint(event){if(!drag||event.pointerId!==drag.pointerId)return;const p=capturePoint(event.clientX,event.clientY,drag.canvas.getBoundingClientRect()),stroke=drag.strokes.at(-1),last=stroke.at(-1);if(stroke.length<3000&&(!last||Math.hypot(p[0]-last[0],p[1]-last[1])>=.4))stroke.push(p);}
+function buildSamples(){for(let slot=0;slot<6;slot++){const wrapper=document.createElement('div');wrapper.className='sample';const title=document.createElement('div');title.className='sample-title';title.append(document.createTextNode(`VERSION 0${slot+1}`));const state=document.createElement('span');state.className='sample-status';title.append(state);const canvas=document.createElement('canvas');canvas.tabIndex=0;const tools=document.createElement('div');tools.className='sample-tools';const undo=document.createElement('button'),clear=document.createElement('button');undo.textContent='↶ Undo stroke';clear.textContent='Clear';undo.setAttribute('aria-label',`Undo last stroke in version ${slot+1}`);clear.setAttribute('aria-label',`Clear version ${slot+1}`);undo.onclick=()=>{if(!drag){const strokes=sampleStrokes(slot);strokes.pop();saveStrokes(slot,strokes);}};clear.onclick=()=>{if(!drag)saveStrokes(slot,[]);};tools.append(undo,clear);wrapper.append(title,canvas,tools);$('samples').append(wrapper);cards.push({canvas,state,undo,clear});
+ canvas.addEventListener('pointerdown',event=>{if(drag||event.pointerType==='mouse'&&event.button!==0||event.pointerType==='touch'&&Date.now()-lastPen<1000)return;if(event.pointerType==='pen')lastPen=Date.now();event.preventDefault();const strokes=sampleStrokes(slot);if(strokes.length>=80){toast('This sample has many strokes. Undo or clear it to draw again.');return;}strokes.push([]);drag={pointerId:event.pointerId,canvas,slot,strokes};canvas.setPointerCapture(event.pointerId);addPoint(event);drawSample(canvas,strokes);});
+ canvas.addEventListener('pointermove',event=>{if(!drag||event.pointerId!==drag.pointerId)return;event.preventDefault();if(event.pointerType==='pen')lastPen=Date.now();const points=event.getCoalescedEvents?.()||[];for(const point of points.length?points:[event])addPoint(point);drawSample(canvas,drag.strokes);});
+ canvas.addEventListener('pointerup',event=>{if(!drag||event.pointerId!==drag.pointerId)return;event.preventDefault();addPoint(event);const completed=drag;drag=null;if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);saveStrokes(completed.slot,completed.strokes);});
+ canvas.addEventListener('pointercancel',event=>{if(drag?.pointerId===event.pointerId){drag=null;renderSamples();toast('The interrupted stroke was not saved. Your earlier strokes are still here.');}});
+ canvas.addEventListener('lostpointercapture',event=>{if(drag?.pointerId===event.pointerId){drag=null;renderSamples();}});
+ }}
+function drawPreview(){const text=$('previewText').value||'Your handwriting',width=Math.max(220,Math.min(740,$('previewCanvas').parentElement.clientWidth)),result=renderNote(text,{profile,size:24,width,variation:.15,seed});const target=$('previewCanvas');target.width=result.canvas.width;target.height=result.canvas.height;target.getContext('2d').drawImage(result.canvas,0,0);target.style.width=`${width}px`;target.style.height='auto';const c=result.coverage;$('previewInfo').textContent=`${c.covered} / ${c.total} characters in this preview use your samples. Missing letters use a standard font. Sizes are normalized; your original strokes stay unchanged.`;}
+function download(){if(drag){toast('Lift your stylus before downloading.');return;}const validated=validateProfile(profile),blob=new Blob([JSON.stringify(validated)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='margin-handwriting-backup.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);toast('Save margin-handwriting-backup.json in Files or Downloads. Import that file into your Margin profile.');}
+$('profileName').addEventListener('input',()=>{profile.name=$('profileName').value;persist();});
+document.querySelectorAll('[data-group]').forEach(button=>button.onclick=()=>{if(drag)return;group=button.dataset.group;document.querySelectorAll('[data-group]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));choose(GROUPS[group][0]);});
+$('nextButton').onclick=()=>choose(nextCaptureCharacter(profile,active,GROUPS[group]));$('mixButton').onclick=()=>{seed++;drawPreview();};$('previewText').oninput=drawPreview;$('downloadButton').onclick=download;
+$('importButton').onclick=()=>$('importInput').click();$('importInput').onchange=async()=>{const file=$('importInput').files[0];$('importInput').value='';if(!file)return;if(drag)return;if(file.size>8388608){toast('Choose a handwriting backup under 8 MB.');return;}try{const next=validateProfile(JSON.parse(await file.text()));if(profileStats(profile).count&&!confirm('Replace the capture profile on this device? Download your current handwriting first if you want to keep it.'))return;profile=next;$('profileName').value=profile.name;persist();renderSamples();toast('Backup imported. All six sample slots are preserved.');}catch{toast('This file is not a valid Margin handwriting backup. Your current samples are unchanged.');}};
+addEventListener('beforeunload',event=>{if(unsaved||drag){event.preventDefault();event.returnValue='';}});
+let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(!drag)renderSamples();drawPreview();},150);});
+let restored=false;try{const saved=localStorage.getItem(STORAGE_KEY);if(saved){profile=validateProfile(JSON.parse(saved));restored=true;}announce(restored?'Your saved handwriting is restored on this device.':'Ready to draw · your samples save on this device.');}catch{unsaved=true;announce('Your device copy could not be loaded. You can still capture samples and download a backup.',true);}
+$('profileName').value=profile.name;buildSamples();updateProgress();renderSamples();drawPreview();
+
+</script>
+</body></html>

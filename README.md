@@ -1,5 +1,7 @@
 # Margin — Google-login deployment
 
+For stylus-only handwriting capture without account sign-in, see [docs/README.md](docs/README.md). Enable GitHub Pages from the `main` branch and `/docs` folder to publish it.
+
 Start with [GOOGLE_HOSTING.md](GOOGLE_HOSTING.md) to run this app independently of ChatGPT using Google sign-in and Cloudflare connected to your GitHub repository. The new deployment is prepared but needs your Google and Cloudflare account configuration before it is live.
 
 # Margin

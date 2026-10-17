@@ -16,7 +16,8 @@
     "build:google": "node scripts/build-google.mjs",
     "dev:google": "node scripts/build-google.mjs && wrangler dev --config wrangler.google.jsonc",
     "deploy:google": "node scripts/deploy-google.mjs",
-    "check:google": "node --check standalone/worker.mjs && node --check standalone/auth.mjs && node --test tests/*.test.mjs"
+    "check:google": "node --check standalone/worker.mjs && node --check standalone/auth.mjs && node --test tests/*.test.mjs",
+    "build:capture": "node scripts/build-capture.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
