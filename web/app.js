@@ -93,7 +93,7 @@ async function makeDemo(){const d=await PDFDocument.create(),regular=await d.emb
 async function exportPdf(){
  if(!originalBytes||isLoading)return;const btn=$('exportBtn');btn.disabled=true;btn.textContent='Preparing your PDF…';
  try{const {profile:unused,...settings}=getSettings();const notes=annotations.map(n=>n.kind==='note'&&n.style==='hand'?{...n,handwriting:n.handwriting||profile}:n);
-  const bytes=await exportEditablePdf({sourceBytes:originalBytes.slice(0),annotations:notes,settings:{...settings,noteWidth},pageNumber,getViewport:async number=>(await pdf.getPage(number)).getViewport({scale:1}),renderImage:async note=>{const rendered=renderNote(note.text,{...note,profile});return{height:rendered.height,data:rendered.canvas.toDataURL('image/png')};}});
+  const bytes=await exportEditablePdf({sourceBytes:originalBytes.slice(0),annotations:notes,settings:{...settings,noteWidth},pageNumber,getViewport:async number=>(await pdf.getPage(number)).getViewport({scale:1}),renderImage:async note=>{const rendered=renderNote(note.text,{...note,profile,resolution:6});return{height:rendered.height,data:rendered.canvas.toDataURL('image/png')};}});
   download(new Blob([bytes],{type:'application/pdf'}),filename.replace(/\.pdf$/i,'')+' - annotated.pdf');dirty=false;dispatchEvent(new CustomEvent('margin:exported'));$('saveStatus').textContent='Exported · your original PDF stays unchanged';toast('Editable PDF ready. Reopen it in Margin to keep adjusting your notes.');
  }catch(err){console.error(err);toast('This PDF could not be exported. Your edits are still here; try another document if the PDF is restricted.');throw err;}
  finally{btn.disabled=false;btn.textContent='Review & export  ↗';}
