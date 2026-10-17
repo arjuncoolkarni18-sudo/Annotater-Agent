@@ -15,7 +15,7 @@
     "check": "node --check web/app.js && node --check web/flow.js && node --test tests/*.test.mjs",
     "build:google": "node scripts/build-google.mjs",
     "dev:google": "node scripts/build-google.mjs && wrangler dev --config wrangler.google.jsonc",
-    "deploy:google": "wrangler deploy --config wrangler.google.jsonc && wrangler d1 migrations apply DB --remote --config wrangler.google.jsonc",
+    "deploy:google": "node scripts/deploy-google.mjs",
     "check:google": "node --check standalone/worker.mjs && node --check standalone/auth.mjs && node --test tests/*.test.mjs"
   },
   "dependencies": {

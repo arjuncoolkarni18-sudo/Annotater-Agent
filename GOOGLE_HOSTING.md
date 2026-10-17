@@ -16,7 +16,7 @@ This version can run at a separate Cloudflare address without ChatGPT sign-in. T
 | Deploy command | `npm run deploy:google` |
 | Preview deployments | Disable while setting up Google |
 
-5. Deploy. Wrangler uses `wrangler.google.jsonc`, automatically creates or reconnects the `DB` database, then applies the SQL migration. The page initially says **Almost ready** until sign-in is configured.
+5. Deploy. The deployment script resolves the `DB` database by name, creates it only if it is missing, writes its database ID into the build configuration, applies SQL migrations, and then publishes the Worker. It reuses the existing database on later builds. The page initially says **Almost ready** until sign-in is configured.
 6. Copy the actual Worker address Cloudflare returns. Do not guess the account subdomain. Future pushes to this connected GitHub branch trigger a deployment.
 
 ## 2. Register Google sign-in
