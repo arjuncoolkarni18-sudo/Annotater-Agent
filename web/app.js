@@ -1,3 +1,4 @@
+import {readSheet,mergeSheet} from './sheet-import.js';
 import * as pdfjs from './assets/pdf.mjs';
 import {PDFDocument,StandardFonts,rgb,degrees} from './assets/pdf-lib.js';
 import {GROUPS,CHARACTERS,simplify,hashSeed,validateProfile,profileStats,coverage,placeInBounds,exportPlacement} from './core.js';
@@ -187,3 +188,9 @@ $('profileDialog').addEventListener('close',()=>profileSync?.flush());
 addEventListener('online',()=>profileSync?.retry());
 await bootFlow(editorAPI);
 
+
+let pendingSheet=null;
+$('importSheet').onclick=()=>$('sheetInput').click();
+$('sheetInput').onchange=async()=>{const file=$('sheetInput').files[0];$('sheetInput').value='';if(!file)return;$('importSheet').disabled=true;try{pendingSheet=await readSheet(file,pdfjs,p=>{$('sheetStatus').textContent=`Reading page ${p} of 11…`;});const count=Object.values(pendingSheet).flat().filter(Boolean).length;if(!count)throw Error('No dark handwriting was found. Use a dark pen inside the boxes.');const grid=$('sheetReviewGrid');grid.replaceChildren();for(const [ch,slots] of Object.entries(pendingSheet)){if(!slots.some(Boolean))continue;const row=document.createElement('div');row.className='sheet-review-row';const label=document.createElement('strong');label.textContent=ch;row.append(label);slots.forEach((sample,i)=>{const box=document.createElement('label'),check=document.createElement('input'),canvas=document.createElement('canvas');check.type='checkbox';check.checked=!!sample;check.disabled=!sample;check.setAttribute('aria-label',`Import ${ch} sample ${i+1}`);check.onchange=()=>{pendingSheet[ch][i]=check.checked?sample:null;};canvas.width=canvas.height=100;drawCapture(canvas,sample);box.append(canvas,check);row.append(box);});grid.append(row);}$('sheetReviewStatus').textContent=`${count} samples found. Uncheck any incorrect crops. Existing samples are kept by default.`;$('sheetReplace').checked=false;$('sheetReviewDialog').showModal();$('sheetStatus').textContent='Review your samples before saving.';}catch(err){pendingSheet=null;$('sheetStatus').textContent=err.message||'Could not read this template.';}finally{$('importSheet').disabled=false;}};
+$('saveSheet').onclick=()=>{if(!pendingSheet)return;const replace=$('sheetReplace').checked;if(replace&&profileStats(profile).count&&!confirm('Replace matching sample slots? Download a profile backup first if you want to keep the originals.'))return;profile=validateProfile(mergeSheet(profile,pendingSheet,replace));saveProfile();buildCharacterGrid();buildSampleGrid();showProfilePreview();showPreview();renderAnnotations();pendingSheet=null;$('sheetReviewDialog').close();$('sheetStatus').textContent='Imported. Check the account sync status above to confirm the backup is saved.';};
+$('sheetReviewDialog').addEventListener('close',()=>{pendingSheet=null;});
