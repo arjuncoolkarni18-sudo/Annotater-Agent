@@ -140,7 +140,7 @@ function renderNote(text,{style='hand',fontFamily='sans',size=16,color='#303a50'
   let y=padding+ascent;
   for(const line of lines){let x=padding+(style==='digital'?(random()-.5)*variation*1.1:0),lineJitter=style==='digital'?(random()-.5)*variation*.7:0;for(const g of line){
     if(g.ch!==' '){ctx.save();ctx.translate(x,y+(g.jitter||0)+lineJitter);ctx.rotate(g.rotation||0);
-      if(g.sample){ctx.lineWidth=Math.max(.65,size*.06);const points=g.sample.strokes;for(const stroke of points){ctx.beginPath();for(let i=0;i<stroke.length;i++){const p=stroke[i],px=(p[0]-g.bounds.minX)*g.scaleX,py=(p[1]-g.bounds.minY)*g.scaleY+g.top;if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);}if(stroke.length===1){const p=stroke[0];ctx.lineTo((p[0]-g.bounds.minX)*g.scaleX+.1,(p[1]-g.bounds.minY)*g.scaleY+g.top+.1);}ctx.stroke();}}
+      if(g.sample){ctx.lineWidth=Math.max(.65,size*.06);const points=g.sample.strokes;for(const stroke of points){ctx.beginPath();for(let i=0;i<stroke.length;i++){const p=stroke[i],px=(p[0]-g.bounds.minX)*g.scaleX,py=(p[1]-g.bounds.minY)*g.scaleY+g.top;if(i===0)ctx.moveTo(px,py);else if(i<stroke.length-1){const next=stroke[i+1];ctx.quadraticCurveTo(px,py,((p[0]+next[0])/2-g.bounds.minX)*g.scaleX,((p[1]+next[1])/2-g.bounds.minY)*g.scaleY+g.top);}else ctx.lineTo(px,py);}if(stroke.length===1){const p=stroke[0];ctx.lineTo((p[0]-g.bounds.minX)*g.scaleX+.1,(p[1]-g.bounds.minY)*g.scaleY+g.top+.1);}ctx.stroke();}}
       else ctx.fillText(g.ch,0,0);
       ctx.restore();
     }x+=g.width;}y+=lineHeight;}
