@@ -1,3 +1,7 @@
+# Margin — Google-login deployment
+
+Start with [GOOGLE_HOSTING.md](GOOGLE_HOSTING.md) to run this app independently of ChatGPT using Google sign-in and Cloudflare connected to your GitHub repository. The new deployment is prepared but needs your Google and Cloudflare account configuration before it is live.
+
 # Margin
 
 A private PDF annotation workspace. Visitors sign in with ChatGPT and arrive at a device-local project history. The server supplies authenticated session information and a prepared, authenticated AI drafting endpoint. PDF editing and handwriting rendering happen in the browser.

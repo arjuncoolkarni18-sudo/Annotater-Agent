@@ -12,7 +12,11 @@
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "check": "node --check web/app.js && node --check web/flow.js && node --test tests/*.test.mjs"
+    "check": "node --check web/app.js && node --check web/flow.js && node --test tests/*.test.mjs",
+    "build:google": "node scripts/build-google.mjs",
+    "dev:google": "node scripts/build-google.mjs && wrangler dev --config wrangler.google.jsonc",
+    "deploy:google": "wrangler deploy --config wrangler.google.jsonc && wrangler d1 migrations apply DB --remote --config wrangler.google.jsonc",
+    "check:google": "node --check standalone/worker.mjs && node --check standalone/auth.mjs && node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

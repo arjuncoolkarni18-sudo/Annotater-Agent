@@ -66,3 +66,7 @@ next-env.d.ts
 
 !.env.example
 *.tsbuildinfo
+
+/dist-google/
+.dev.vars*
+!.dev.vars.example

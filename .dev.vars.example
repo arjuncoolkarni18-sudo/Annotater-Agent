@@ -1,0 +1,7 @@
+# Local testing only. Copy to .dev.vars, which stays ignored by Git.
+# Add these separately as encrypted secrets on your deployed Cloudflare Worker.
+APP_ORIGIN=https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev
+ALLOWED_EMAILS=your-google-email@example.com
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+OPENAI_API_KEY=
