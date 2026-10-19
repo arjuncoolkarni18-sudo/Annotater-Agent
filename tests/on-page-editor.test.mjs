@@ -1,0 +1,8 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {openOnPageEditor} from '../web/on-page-editor.js';
+test('on-page editing stages changes, preserves the original on validation failure, and cancels cleanly',async()=>{
+ const previous={document:globalThis.document,innerWidth:globalThis.innerWidth,innerHeight:globalThis.innerHeight};const nodes=new Map();let panel,removed=false,cancelled=false,submitted;
+ globalThis.innerWidth=800;globalThis.innerHeight=900;globalThis.document={querySelector:()=>null,createElement:()=>panel={setAttribute(){},style:{},offsetWidth:360,offsetHeight:300,remove(){removed=true;},querySelector(key){if(!nodes.has(key))nodes.set(key,{value:'',focus(){},click(){this.onclick?.();}});return nodes.get(key);}},body:{append(){}}};
+ try{const note={text:'Original',style:'hand',fontFamily:'sans',size:12,color:'#303a50'};openOnPageEditor(note,{getBoundingClientRect:()=>({left:750,bottom:880}),focus(){}},{save:async changes=>{submitted=changes;return 'Too much text for this box.';},cancel:()=>{cancelled=true;}});
+ assert.equal(nodes.get('[data-field="fontFamily"]').disabled,true);nodes.get('textarea').value='Changed';nodes.get('[data-field="color"]').value='#cc0000';await nodes.get('[data-action="save"]').onclick();assert.equal(submitted.text,'Changed');assert.equal(submitted.color,'#cc0000');assert.equal(note.text,'Original');assert.equal(removed,false);assert.match(nodes.get('[role="status"]').textContent,/Too much text/);assert.equal(panel.style.left,'432px');nodes.get('[data-action="cancel"]').onclick();assert.equal(cancelled,true);assert.equal(removed,true);
+ }finally{for(const [k,v] of Object.entries(previous)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
+});

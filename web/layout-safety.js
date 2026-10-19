@@ -20,7 +20,7 @@ export function rasterSafety(rgba,width,height,pageWidth,pageHeight){
 export function validateNoteLayout(notes,{pageWidth,pageHeight,obstacles=[],raster,margin=8}){
  const issues=[];for(let i=0;i<notes.length;i++){const n=notes[i];if(n.kind!=='note')continue;
   const reasons=[];if(![n.x,n.y,n.width,n.height,n.size].every(Number.isFinite)||n.x<margin||n.y<margin||n.x+n.width>pageWidth-margin||n.y+n.height>pageHeight-margin)reasons.push('outside page margins');
-  if(n.size>18)reasons.push('oversized worksheet text');if(n.size<8)reasons.push('text too small');
+  if(n.size>36)reasons.push('oversized worksheet text');if(n.size<8)reasons.push('text too small');
   if(obstacles.some(b=>overlaps(n,b,0))||raster?.collides(n))reasons.push('covers original worksheet content');
   if(notes.some((b,j)=>j!==i&&b.kind==='note'&&overlaps(n,b,2)))reasons.push('overlaps another answer');
   if(reasons.length)issues.push({id:n.id,reasons});
