@@ -62,7 +62,7 @@ test('all six alphabet samples save to Google account storage with conflict chec
 
 test('AI uses server credentials, enforces daily limits and accepts drafting without a reference text',async()=>{
  const {env}=setup(),cookie=await addSession(env),input={mode:'worksheet',pages:[{page:1,width:500,height:700,text:'What is 2+2?',lines:[]}],source:''};let calls=0;
- const fetcher=async(url,options)=>{calls++;assert.equal(url,'https://api.openai.com/v1/responses');assert.equal(options.headers.Authorization,'Bearer test-api-key');const body=JSON.parse(options.body);assert.equal(JSON.parse(body.input).source,'');assert.equal(body.reasoning.effort,'minimal');return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({answers:[{page:1,question:'What is 2+2?',answer:'4',source:'General knowledge; verify',x:30,y:60,width:100}],warnings:[]})}]}],usage:{input_tokens:10,output_tokens:20}});};
+ const fetcher=async(url,options)=>{calls++;assert.equal(url,'https://api.openai.com/v1/responses');assert.equal(options.headers.Authorization,'Bearer test-api-key');const body=JSON.parse(options.body);assert.equal(JSON.parse(body.input[0].content[0].text).source,'');assert.equal(body.reasoning.effort,'minimal');return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({answers:[{page:1,question:'What is 2+2?',answer:'4',source:'General knowledge; verify',x:30,y:60,width:100}],warnings:[]})}]}],usage:{input_tokens:10,output_tokens:20}});};
  const send=()=>handleRequest(request('/api/draft',{method:'POST',headers:{cookie,origin,'content-type':'application/json'},body:JSON.stringify(input)}),env,fetcher);
  let response=await send();assert.equal(response.status,200);assert.equal((await response.json()).answers[0].answer,'4');response=await send();assert.equal(response.status,429);assert.equal(calls,1);
 });
@@ -81,4 +81,19 @@ test('signed-in home page and legacy editor route avoid the index.html canonical
   const response=await handleRequest(request(route,withCookie(cookie)),env);assert.equal(response.status,200);assert.equal(response.headers.get('location'),null);assert.match(await response.text(),/Margin editor/);assert.equal(response.headers.get('cache-control'),'private, no-store');
  }
  assert.deepEqual(seen,['/','/','/']);
+});
+test('format-guided notes use vision inputs, a strict document plan, and separate new-page validation',async()=>{
+ const {env}=setup(),cookie=await addSession(env);const input={mode:'worksheet',task:'notes',pages:[{page:1,width:612,height:792,text:'Create notes',lines:[]}],source:'Topic: Spanish present tense',exemplars:[{name:'Cornell.png',text:'',images:['data:image/jpeg;base64,YWJj']}]};
+ const r=await handleRequest(request('/api/draft',{method:'POST',headers:{cookie,origin,'content-type':'application/json'},body:JSON.stringify(input)}),env,async(url,options)=>{const body=JSON.parse(options.body);assert.ok(body.input[0].content.some(c=>c.type==='input_image'));assert.ok(body.text.format.schema.properties.document);return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({document:{title:'Español',layout:'cornell',language:'es',pages:2},answers:[{page:2,question:'Verbos',answer:'Los verbos cambian según el sujeto.',source:'General knowledge; verify',x:182,y:100,width:388}],warnings:[]})}]}]});});assert.equal(r.status,200);const result=await r.json();assert.equal(result.document.language,'es');assert.equal(result.answers[0].page,2);
+});
+test('transcription requires authentication and origin checks, forwards media only server-side, and shares request limits',async()=>{
+ const {env}=setup(),cookie=await addSession(env);const make=()=>{const body=new FormData();body.append('file',new Blob(['audio'],{type:'audio/mpeg'}),'lesson.mp3');return body;};let calls=0;
+ const fetcher=async(url,options)=>{calls++;assert.equal(url,'https://api.openai.com/v1/audio/transcriptions');assert.equal(options.headers.Authorization,'Bearer test-api-key');assert.equal(options.body.get('model'),'gpt-4o-mini-transcribe');return Response.json({text:'Hoy estudiamos los verbos.'});};
+ assert.equal((await handleRequest(request('/api/transcribe',{method:'POST',headers:{origin},body:make()}),env,fetcher)).status,401);
+ assert.equal((await handleRequest(request('/api/transcribe',{method:'POST',headers:{cookie,origin:'https://other.example'},body:make()}),env,fetcher)).status,403);
+ const send=()=>handleRequest(request('/api/transcribe',{method:'POST',headers:{cookie,origin},body:make()}),env,fetcher);const good=await send();assert.equal(good.status,200);assert.match((await good.json()).text,/verbos/);assert.equal((await send()).status,429);assert.equal(calls,1);
+});
+test('a scanned worksheet with no selectable text can be answered from page images without reference text',async()=>{
+ const {env}=setup(),cookie=await addSession(env),input={mode:'worksheet',pages:[{page:1,width:612,height:792,text:'',lines:[],image:'data:image/png;base64,YWJj'}],source:''};
+ const result=await handleRequest(request('/api/draft',{method:'POST',headers:{cookie,origin,'content-type':'application/json'},body:JSON.stringify(input)}),env,async(url,options)=>{const body=JSON.parse(options.body);assert.ok(body.input[0].content.some(c=>c.type==='input_image'));assert.match(body.instructions,/EVERY readable worksheet prompt/);return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({answers:[{page:1,question:'Visible question',answer:'An answer from general knowledge.',source:'General knowledge; verify',x:42,y:200,width:250}],warnings:[]})}]}]});});assert.equal(result.status,200);assert.equal((await result.json()).answers.length,1);
 });
