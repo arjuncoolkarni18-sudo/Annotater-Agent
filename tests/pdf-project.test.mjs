@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {validateProfile} from '../web/core.js';
 import assert from 'node:assert/strict';
 import {PDFDocument,PDFName,PDFDict,PDFArray,decodePDFRawStream,degrees} from '../web/assets/pdf-lib.js';
 import {exportEditablePdf,parseProject,serializeProject,removeProjectAnnotations} from '../web/pdf-project.js';
@@ -22,4 +23,11 @@ test('project import validates styles and page references before making text box
  const value=serializeProject([note],settings,1);assert.equal(parseProject(new TextEncoder().encode(JSON.stringify(value)),1).annotations.length,1);
  const invalid=structuredClone(value);invalid.annotations[0].page=20;assert.throws(()=>parseProject(new TextEncoder().encode(JSON.stringify(invalid)),1));
  invalid.annotations[0].page=1;invalid.annotations[0].size=-4;assert.throws(()=>parseProject(new TextEncoder().encode(JSON.stringify(invalid)),1));
+});
+test('outline handwriting exports as filled PDF paths and reopens with all contour data',async()=>{
+ const shape={strokes:[[[10,10],[20,10],[20,30],[10,30],[10,10]]],outlines:[[[10,10],[20,10],[20,30],[10,30],[10,10]]],inkVersion:2};
+ const source=await PDFDocument.create();source.addPage([612,792]);const n={...note,text:'A',handwriting:{version:1,name:'Ink',samples:{A:Array(6).fill(shape)}}};
+ const data=await exportEditablePdf({sourceBytes:await source.save(),annotations:[n],settings,pageNumber:1,getViewport:async()=>({convertToPdfPoint:(x,y)=>[x,792-y]}),renderImage:async()=>({height:45,vector:'q 0 0 m 10 0 l 10 20 l 0 20 l h f* Q'})});
+ const doc=await PDFDocument.load(data),a=doc.context.lookup(doc.getPages()[0].node.Annots().get(0),PDFDict),appearance=a.lookup(PDFName.of('AP'),PDFDict).lookup(PDFName.of('N'));
+ const content=new TextDecoder().decode(decodePDFRawStream(appearance).decode());assert.match(content,/f\*/);assert.doesNotMatch(content,/\/Ink Do/);assert.equal(appearance.dict.lookup(PDFName.of('Resources'),PDFDict).get(PDFName.of('XObject')),undefined);assert.deepEqual(parseProject(embedded(doc).bytes,1).annotations[0].handwriting.samples.A,validateProfile(n.handwriting).samples.A);
 });

@@ -36,13 +36,13 @@ function removeProjectAttachment(doc){
 }
 export async function exportEditablePdf({sourceBytes,annotations,settings,pageNumber,getViewport,renderImage}){
  const doc=await PDFDocument.load(sourceBytes),font=await doc.embedFont(StandardFonts.Helvetica),normalized=[];
- for(const original of annotations){const note={...original},page=doc.getPages()[note.page-1],viewport=await getViewport(note.page);let image;
-  if(note.kind==='note'){const rendered=await renderImage(note);note.height=rendered.height;image=await doc.embedPng(rendered.data);}
+ for(const original of annotations){const note={...original},page=doc.getPages()[note.page-1],viewport=await getViewport(note.page);let image,vector;
+  if(note.kind==='note'){const rendered=await renderImage(note);note.height=rendered.height;vector=rendered.vector;if(!vector)image=await doc.embedPng(rendered.data);}
   const p=exportPlacement(viewport,note.x,note.y,note.width,note.height),r=p.angle*Math.PI/180,c=Math.round(Math.cos(r)),s=Math.round(Math.sin(r));
   const corners=[[0,0],[p.width,0],[0,p.height],[p.width,p.height]].map(([x,y])=>[p.x+c*x-s*y,p.y+s*x+c*y]),xs=corners.map(v=>v[0]),ys=corners.map(v=>v[1]),rect=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
   const color=note.kind==='note'?[1,3,5].map(i=>parseInt(note.color.slice(i,i+2),16)/255):[.95,.81,.25];
-  const resources=note.kind==='note'?{XObject:{Ink:image.ref},Font:{Helv:font.ref}}:{ExtGState:{InkState:doc.context.obj({Type:'ExtGState',ca:.28,BM:'Multiply'})}};
-  const content=note.kind==='note'?`q\n${p.width} 0 0 ${p.height} 0 0 cm\n/Ink Do\nQ`:`q\n/InkState gs\n${color.join(' ')} rg\n0 0 ${p.width} ${p.height} re f\nQ`;
+  const resources=note.kind==='note'?{...(image?{XObject:{Ink:image.ref}}:{}),Font:{Helv:font.ref}}:{ExtGState:{InkState:doc.context.obj({Type:'ExtGState',ca:.28,BM:'Multiply'})}};
+  const content=note.kind==='note'?(vector?`q\n${color.join(' ')} rg\n1 0 0 -1 0 ${p.height} cm\n${vector}\nQ`:`q\n${p.width} 0 0 ${p.height} 0 0 cm\n/Ink Do\nQ`):`q\n/InkState gs\n${color.join(' ')} rg\n0 0 ${p.width} ${p.height} re f\nQ`;
   const appearance=doc.context.register(doc.context.flateStream(content,{Type:'XObject',Subtype:'Form',FormType:1,BBox:[0,0,p.width,p.height],Matrix:[c,s,-s,c,0,0],Resources:resources}));
   const dict=doc.context.obj({Type:'Annot',Subtype:note.kind==='note'?'FreeText':'Highlight',Rect:rect,NM:PDFHexString.fromText(`margin:${note.id}`),T:PDFHexString.fromText('Margin'),M:PDFString.fromDate(new Date()),F:4,AP:{N:appearance},C:color,Border:[0,0,0],BS:{W:0},...(note.kind==='note'?{Contents:PDFHexString.fromText(note.text),DA:PDFString.of(`/Helv ${note.size} Tf ${color.join(' ')} rg`),Q:0}:{CA:.28,QuadPoints:[...corners[2],...corners[3],...corners[0],...corners[1]]})});
   page.node.addAnnot(doc.context.register(dict));normalized.push(note);

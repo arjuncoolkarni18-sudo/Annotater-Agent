@@ -23,6 +23,69 @@
 <footer>This page does not open PDFs or generate answers. A downloaded backup preserves your samples even if browser storage is cleared.</footer>
 </main><div id="toast" role="status" hidden></div>
 <script type="module">
+// Trace the outside and inside edges of the ink, never a replacement centerline.
+// Coordinates remain vectors; the source is sampled at its native PDF render scale.
+function outlineInk(rgba,width,height){
+ const level=new Float32Array(width*height);let ink=0;
+ for(let i=0;i<level.length;i++){const j=i*4,r=rgba[j],g=rgba[j+1],b=rgba[j+2];level[i]=rgba[j+3]>100?165-(.2126*r+.7152*g+.0722*b):-90;if(level[i]>0)ink++;}
+ if(ink<3)return null;
+ // Subpixel marching squares follows the antialiased PDF ink edge. Thresholded
+ // pixel rectangles would make even a vector export visibly stair-stepped.
+ const vertices=new Map(),edges=new Map(),scale=150/Math.max(width,height),value=(x,y)=>x<0||y<0||x>=width||y>=height?-90:level[y*width+x];
+ const connect=(a,b)=>{if(!edges.has(a))edges.set(a,[]);if(!edges.has(b))edges.set(b,[]);edges.get(a).push(b);edges.get(b).push(a);};
+ const cases={1:[[3,0]],2:[[0,1]],3:[[3,1]],4:[[1,2]],6:[[0,2]],7:[[3,2]],8:[[2,3]],9:[[2,0]],11:[[2,1]],12:[[1,3]],13:[[1,0]],14:[[0,3]]};
+ for(let y=-1;y<height;y++)for(let x=-1;x<width;x++){
+  const v=[value(x,y),value(x+1,y),value(x+1,y+1),value(x,y+1)],code=v.reduce((n,z,i)=>n+(z>0?1<<i:0),0);if(!code||code===15)continue;
+  const center=v.reduce((a,b)=>a+b,0)>0,pairs=code===5?(center?[[0,1],[2,3]]:[[3,0],[1,2]]):code===10?(center?[[3,0],[1,2]]:[[0,1],[2,3]]):cases[code];
+  const endpoint=e=>{const keys=[`h${x},${y}`,`v${x+1},${y}`,`h${x},${y+1}`,`v${x},${y}`],key=keys[e];if(!vertices.has(key)){const ends=[[0,1],[1,2],[3,2],[0,3]][e],coords=[[x+.5,y+.5],[x+1.5,y+.5],[x+1.5,y+1.5],[x+.5,y+1.5]],a=ends[0],b=ends[1],t=v[a]/(v[a]-v[b]);vertices.set(key,[5+(coords[a][0]+t*(coords[b][0]-coords[a][0]))*scale,5+(coords[a][1]+t*(coords[b][1]-coords[a][1]))*scale]);}return key;};
+  for(const [a,b] of pairs)connect(endpoint(a),endpoint(b));
+ }
+ const outlines=[];
+ while(edges.size){const start=edges.keys().next().value,loop=[vertices.get(start)];let at=start,guard=0;
+  do{const nexts=edges.get(at);if(!nexts?.length)throw Error('Ink contour could not be read.');const next=nexts.pop();if(!nexts.length)edges.delete(at);const back=edges.get(next);if(back){const i=back.indexOf(at);if(i>=0)back.splice(i,1);if(!back.length)edges.delete(next);}at=next;loop.push(vertices.get(at));if(++guard>width*height*4)throw Error('Ink contour is too complex.');}while(at!==start);
+  if(loop.length<5)continue;const simple=reduceContour(loop,.025);if(simple.length>=4)outlines.push(simple);
+ }
+ if(outlines.length>256||outlines.reduce((n,p)=>n+p.length,0)>16000)throw Error('Too much detail in a sample box. Remove background marks and try again.');
+ if(!outlines.length)return null;
+ const strokes=outlines.slice(0,80).map(p=>[p[0]]);
+ return{strokes,outlineData:encodeOutlines(outlines),inkVersion:2};
+}
+function reduceContour(points,tolerance){
+ // Iterative RDP, bounded to less than a fifth of a source pixel at 432 dpi.
+ const keep=new Uint8Array(points.length);keep[0]=keep[points.length-1]=1;const stack=[[0,points.length-1]];
+ while(stack.length){const [a,b]=stack.pop(),p=points[a],q=points[b],dx=q[0]-p[0],dy=q[1]-p[1],den=dx*dx+dy*dy;let far=-1,best=tolerance*tolerance;
+  for(let i=a+1;i<b;i++){const r=points[i],t=den?Math.max(0,Math.min(1,((r[0]-p[0])*dx+(r[1]-p[1])*dy)/den)):0,d=(r[0]-p[0]-t*dx)**2+(r[1]-p[1]-t*dy)**2;if(d>best){best=d;far=i;}}
+  if(far>=0){keep[far]=1;stack.push([a,far],[far,b]);}}
+ return points.filter((_,i)=>keep[i]).map(p=>p.map(v=>Math.round(v*1000)/1000));
+}
+function paintOutline(ctx,sample,transform=p=>p){
+ ctx.beginPath();for(const loop of getInkOutlines(sample)){loop.forEach((point,i)=>{const p=transform(point);if(i)ctx.lineTo(...p);else ctx.moveTo(...p);});ctx.closePath();}ctx.fill('evenodd');
+}
+function outlinePdf(sample,metrics,x,y,rotation=0){
+ const f=n=>Number(n.toFixed(4)),c=f(Math.cos(rotation)),s=f(Math.sin(rotation));
+ const commands=[`q ${c} ${s} ${-s} ${c} ${f(x)} ${f(y)} cm`];
+ for(const loop of getInkOutlines(sample)){loop.forEach((p,i)=>commands.push(`${f((p[0]-metrics.bounds.minX)*metrics.scaleX)} ${f((p[1]-metrics.bounds.minY)*metrics.scaleY+metrics.top)} ${i?'l':'m'}`));commands.push('h');}
+ commands.push('f* Q');return commands.join('\n');
+}
+
+const outlineCache=new WeakMap();
+function encodeOutlines(outlines){
+ const bytes=[],put=n=>{do{let b=n&127;n>>>=7;if(n)b|=128;bytes.push(b);}while(n);};
+ put(outlines.length);
+ for(const loop of outlines){put(loop.length);let x=0,y=0;for(const p of loop){const xx=Math.round(p[0]*128),yy=Math.round(p[1]*128);for(const d of [xx-x,yy-y])put((d<<1)^(d>>31));x=xx;y=yy;}}
+ let binary='';for(const b of bytes)binary+=String.fromCharCode(b);return btoa(binary);
+}
+function getInkOutlines(sample){
+ if(Array.isArray(sample.outlines))return sample.outlines;
+ if(!sample.outlineData)return null;if(outlineCache.has(sample))return outlineCache.get(sample);
+ if(typeof sample.outlineData!=='string'||sample.outlineData.length>150000)throw Error('Invalid handwriting outline encoding.');
+ let data;try{data=atob(sample.outlineData);}catch{throw Error('Invalid handwriting outline encoding.');}let pos=0,total=0;
+ const get=()=>{let n=0;for(let i=0;i<5;i++){if(pos>=data.length)throw Error('Truncated handwriting outline.');const b=data.charCodeAt(pos++);n|=(b&127)<<(i*7);if(!(b&128))return n>>>0;}throw Error('Invalid handwriting outline integer.');};
+ const count=get();if(count<1||count>256)throw Error('Invalid handwriting contour count.');const outlines=[];
+ for(let l=0;l<count;l++){const n=get();if(n<4||(total+=n)>16000)throw Error('Invalid handwriting contour size.');let x=0,y=0;const loop=[];for(let i=0;i<n;i++){let d=get();x+=(d>>>1)^-(d&1);d=get();y+=(d>>>1)^-(d&1);if(x<0||y<0||x>20480||y>20480)throw Error('Invalid handwriting contour point.');loop.push([x/128,y/128]);}outlines.push(loop);}
+ if(pos!==data.length)throw Error('Unexpected handwriting outline data.');outlineCache.set(sample,outlines);return outlines;
+}
+
 const GROUPS = {
   lower: 'abcdefghijklmnopqrstuvwxyz',
   upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
@@ -62,7 +125,7 @@ function chooseSample(samples, random, previous=-1){
 }
 function glyphBounds(sample){
   const bounds={minX:160,maxX:0,minY:160,maxY:0};
-  for(const stroke of sample.strokes)for(const [x,y] of stroke){bounds.minX=Math.min(bounds.minX,x);bounds.maxX=Math.max(bounds.maxX,x);bounds.minY=Math.min(bounds.minY,y);bounds.maxY=Math.max(bounds.maxY,y);}
+  for(const stroke of (getInkOutlines(sample)||sample.strokes))for(const [x,y] of stroke){bounds.minX=Math.min(bounds.minX,x);bounds.maxX=Math.max(bounds.maxX,x);bounds.minY=Math.min(bounds.minY,y);bounds.maxY=Math.max(bounds.maxY,y);}
   return bounds;
 }
 function validateProfile(value){
@@ -80,6 +143,11 @@ function validateProfile(value){
           return point;
         });
       }).filter(s=>s.length);
+      if(sample.outlines!==undefined||sample.outlineData!==undefined){
+        const raw=getInkOutlines(sample);if(!Array.isArray(raw)||!raw.length||raw.length>256)throw Error('A handwriting outline is invalid.');
+        let count=0;const outlines=raw.map(loop=>{if(!Array.isArray(loop)||loop.length<4||(count+=loop.length)>16000)throw Error('A handwriting outline is invalid.');return loop.map(point=>{if(!Array.isArray(point)||point.length!==2||point.some(v=>!Number.isFinite(v)||v<0||v>160))throw Error('A handwriting outline point is invalid.');return point;});});
+        return{strokes,outlineData:encodeOutlines(outlines),inkVersion:2};
+      }
       return strokes.length?{strokes}:null;
     });
   }
@@ -108,6 +176,8 @@ function normalizedGlyphMetrics(ch,sample,size){
  let scaleY=size*p.height/Math.max(1,rawH),scaleX=scaleY;
  if(p.targetWidth&&rawW>0){scaleX=size*p.targetWidth/rawW;scaleY=Math.min(scaleX,scaleY);}
  scaleX=Math.min(scaleX,size*p.maxWidth/Math.max(1,rawW));
+ // Preserve the original ink aspect ratio instead of squeezing wide letters.
+ scaleY=Math.min(scaleY,scaleX);
  const inkWidth=rawW*scaleX,inkHeight=rawH*scaleY,top=size*p.bottom-inkHeight;
  return{bounds,scaleX,scaleY,inkWidth,inkHeight,top,ascent:Math.max(0,-top),descent:Math.max(0,top+inkHeight),width:Math.max(size*.12,inkWidth)+size*.1};
 }
@@ -137,14 +207,15 @@ function renderNote(text,{style='hand',fontFamily='sans',size=16,color='#303a50'
   const allGlyphs=lines.flat(),ascent=Math.max(size*1.15,...allGlyphs.filter(g=>g.sample).map(g=>g.ascent+size*.08)),descent=Math.max(size*.3,...allGlyphs.filter(g=>g.sample).map(g=>g.descent+size*.08));
   const lineHeight=Math.max(size*1.5,ascent+descent+size*.1),height=padding*2+ascent+descent+Math.max(0,lines.length-1)*lineHeight;
   const ratio=Math.max(1,Math.min(6,resolution));canvas.width=Math.ceil(width*ratio);canvas.height=Math.ceil(height*ratio);ctx.scale(ratio,ratio);ctx.font=font;ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineCap='round';ctx.lineJoin='round';
-  let y=padding+ascent;
+  const vector=[];let vectorComplete=style==='hand';let y=padding+ascent;
   for(const line of lines){let x=padding+(style==='digital'?(random()-.5)*variation*1.1:0),lineJitter=style==='digital'?(random()-.5)*variation*.7:0;for(const g of line){
     if(g.ch!==' '){ctx.save();ctx.translate(x,y+(g.jitter||0)+lineJitter);ctx.rotate(g.rotation||0);
-      if(g.sample){ctx.lineWidth=Math.max(.65,size*.06);const points=g.sample.strokes;for(const stroke of points){ctx.beginPath();for(let i=0;i<stroke.length;i++){const p=stroke[i],px=(p[0]-g.bounds.minX)*g.scaleX,py=(p[1]-g.bounds.minY)*g.scaleY+g.top;if(i===0)ctx.moveTo(px,py);else if(i<stroke.length-1){const next=stroke[i+1];ctx.quadraticCurveTo(px,py,((p[0]+next[0])/2-g.bounds.minX)*g.scaleX,((p[1]+next[1])/2-g.bounds.minY)*g.scaleY+g.top);}else ctx.lineTo(px,py);}if(stroke.length===1){const p=stroke[0];ctx.lineTo((p[0]-g.bounds.minX)*g.scaleX+.1,(p[1]-g.bounds.minY)*g.scaleY+g.top+.1);}ctx.stroke();}}
-      else ctx.fillText(g.ch,0,0);
+      if((g.sample?.outlineData||g.sample?.outlines)){vector.push(outlinePdf(g.sample,g,x,y+(g.jitter||0)+lineJitter,g.rotation||0));paintOutline(ctx,g.sample,p=>[(p[0]-g.bounds.minX)*g.scaleX,(p[1]-g.bounds.minY)*g.scaleY+g.top]);}
+      else if(g.sample){vectorComplete=false;ctx.lineWidth=Math.max(.65,size*.06);const points=g.sample.strokes;for(const stroke of points){ctx.beginPath();for(let i=0;i<stroke.length;i++){const p=stroke[i],px=(p[0]-g.bounds.minX)*g.scaleX,py=(p[1]-g.bounds.minY)*g.scaleY+g.top;if(i===0)ctx.moveTo(px,py);else if(i<stroke.length-1){const next=stroke[i+1];ctx.quadraticCurveTo(px,py,((p[0]+next[0])/2-g.bounds.minX)*g.scaleX,((p[1]+next[1])/2-g.bounds.minY)*g.scaleY+g.top);}else ctx.lineTo(px,py);}if(stroke.length===1){const p=stroke[0];ctx.lineTo((p[0]-g.bounds.minX)*g.scaleX+.1,(p[1]-g.bounds.minY)*g.scaleY+g.top+.1);}ctx.stroke();}}
+      else{vectorComplete=false;ctx.fillText(g.ch,0,0);}
       ctx.restore();
     }x+=g.width;}y+=lineHeight;}
-  return{canvas,width,height,coverage:coverage(text,profile)};
+  return{canvas,width,height,overflow:allGlyphs.some(g=>g.width>usable),vector:vectorComplete?vector.join('\n'):null,coverage:coverage(text,profile)};
 }
 
 function capturePoint(x,y,rect){
@@ -170,13 +241,13 @@ function persist(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(profile))
 function updateProgress(){const stats=profileStats(profile);$('completeCount').textContent=`${stats.completed} / ${stats.total} characters complete`;$('sampleCount').textContent=`${stats.count} samples saved`;$('progressFill').style.width=`${stats.count/(stats.total*6)*100}%`;document.querySelector('[role="progressbar"]').setAttribute('aria-valuenow',String(Math.round(stats.count/(stats.total*6)*100)));renderLetters();}
 function renderLetters(){const region=$('letters'),focused=document.activeElement?.dataset.char;region.replaceChildren();for(const ch of GROUPS[group]){const button=document.createElement('button'),count=(profile.samples[ch]||[]).filter(s=>s?.strokes?.length).length;button.className='letter'+(count===6?' complete':'');button.dataset.char=ch;button.setAttribute('aria-pressed',String(ch===active));button.setAttribute('aria-label',`${ch}: ${count} of six samples`);button.append(document.createTextNode(ch));const small=document.createElement('small');small.textContent=count?`${count}/6`:'';button.append(small);button.onclick=()=>choose(ch);region.append(button);if(focused===ch)button.focus();}}
 function choose(ch){if(drag)return;active=ch;$('currentChar').textContent=ch;renderLetters();renderSamples();}
-function renderSamples(){cards.forEach((card,i)=>{const sample=profile.samples[active]?.[i],has=!!sample?.strokes?.length;card.canvas.setAttribute('aria-label',`Draw ${active}, sample ${i+1}`);card.state.textContent=has?'Saved':'Empty';card.undo.disabled=!has;card.clear.disabled=!has;drawSample(card.canvas,sample?.strokes||[]);});}
-function drawSample(canvas,strokes){const ratio=Math.min(devicePixelRatio||1,3);canvas.width=160*ratio;canvas.height=160*ratio;const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);ctx.fillStyle='#fff';ctx.fillRect(0,0,160,160);ctx.lineWidth=.6;for(const y of [30,68,120,145]){ctx.strokeStyle=y===120?'#bcc8ae':'#e4e7df';ctx.setLineDash(y===68?[4,4]:[]);ctx.beginPath();ctx.moveTo(10,y);ctx.lineTo(150,y);ctx.stroke();}ctx.setLineDash([]);ctx.strokeStyle='#303a50';ctx.lineWidth=2.3;ctx.lineCap='round';ctx.lineJoin='round';for(const stroke of strokes){ctx.beginPath();stroke.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));if(stroke.length===1)ctx.lineTo(stroke[0][0]+.1,stroke[0][1]+.1);ctx.stroke();}}
+function renderSamples(){cards.forEach((card,i)=>{const sample=profile.samples[active]?.[i],has=!!sample?.strokes?.length;card.canvas.setAttribute('aria-label',`Draw ${active}, sample ${i+1}`);card.state.textContent=has?'Saved':'Empty';card.undo.disabled=!has||!!(sample?.outlineData||sample?.outlines);card.clear.disabled=!has;drawSample(card.canvas,sample?.strokes||[],sample);});}
+function drawSample(canvas,strokes,sample){const ratio=Math.min(devicePixelRatio||1,3);canvas.width=160*ratio;canvas.height=160*ratio;const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);ctx.fillStyle='#fff';ctx.fillRect(0,0,160,160);ctx.lineWidth=.6;for(const y of [30,68,120,145]){ctx.strokeStyle=y===120?'#bcc8ae':'#e4e7df';ctx.setLineDash(y===68?[4,4]:[]);ctx.beginPath();ctx.moveTo(10,y);ctx.lineTo(150,y);ctx.stroke();}ctx.setLineDash([]);ctx.strokeStyle='#303a50';ctx.fillStyle='#303a50';if(sample?.outlineData||sample?.outlines){paintOutline(ctx,sample);return;}ctx.lineWidth=2.3;ctx.lineCap='round';ctx.lineJoin='round';for(const stroke of strokes){ctx.beginPath();stroke.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));if(stroke.length===1)ctx.lineTo(stroke[0][0]+.1,stroke[0][1]+.1);ctx.stroke();}}
 function sampleStrokes(slot){return structuredClone(profile.samples[active]?.[slot]?.strokes||[]);}
 function saveStrokes(slot,strokes){profile=replaceCaptureSample(profile,active,slot,strokes.length?{strokes}:null);persist();renderSamples();}
 function addPoint(event){if(!drag||event.pointerId!==drag.pointerId)return;const p=capturePoint(event.clientX,event.clientY,drag.canvas.getBoundingClientRect()),stroke=drag.strokes.at(-1),last=stroke.at(-1);if(stroke.length<3000&&(!last||Math.hypot(p[0]-last[0],p[1]-last[1])>=.4))stroke.push(p);}
 function buildSamples(){for(let slot=0;slot<6;slot++){const wrapper=document.createElement('div');wrapper.className='sample';const title=document.createElement('div');title.className='sample-title';title.append(document.createTextNode(`VERSION 0${slot+1}`));const state=document.createElement('span');state.className='sample-status';title.append(state);const canvas=document.createElement('canvas');canvas.tabIndex=0;const tools=document.createElement('div');tools.className='sample-tools';const undo=document.createElement('button'),clear=document.createElement('button');undo.textContent='↶ Undo stroke';clear.textContent='Clear';undo.setAttribute('aria-label',`Undo last stroke in version ${slot+1}`);clear.setAttribute('aria-label',`Clear version ${slot+1}`);undo.onclick=()=>{if(!drag){const strokes=sampleStrokes(slot);strokes.pop();saveStrokes(slot,strokes);}};clear.onclick=()=>{if(!drag)saveStrokes(slot,[]);};tools.append(undo,clear);wrapper.append(title,canvas,tools);$('samples').append(wrapper);cards.push({canvas,state,undo,clear});
- canvas.addEventListener('pointerdown',event=>{if(drag||event.pointerType==='mouse'&&event.button!==0||event.pointerType==='touch'&&Date.now()-lastPen<1000)return;if(event.pointerType==='pen')lastPen=Date.now();event.preventDefault();const strokes=sampleStrokes(slot);if(strokes.length>=80){toast('This sample has many strokes. Undo or clear it to draw again.');return;}strokes.push([]);drag={pointerId:event.pointerId,canvas,slot,strokes};canvas.setPointerCapture(event.pointerId);addPoint(event);drawSample(canvas,strokes);});
+ canvas.addEventListener('pointerdown',event=>{if((profile.samples[active]?.[slot]?.outlineData||profile.samples[active]?.[slot]?.outlines)){toast('Clear this imported sample before drawing a replacement.');return;}if(drag||event.pointerType==='mouse'&&event.button!==0||event.pointerType==='touch'&&Date.now()-lastPen<1000)return;if(event.pointerType==='pen')lastPen=Date.now();event.preventDefault();const strokes=sampleStrokes(slot);if(strokes.length>=80){toast('This sample has many strokes. Undo or clear it to draw again.');return;}strokes.push([]);drag={pointerId:event.pointerId,canvas,slot,strokes};canvas.setPointerCapture(event.pointerId);addPoint(event);drawSample(canvas,strokes);});
  canvas.addEventListener('pointermove',event=>{if(!drag||event.pointerId!==drag.pointerId)return;event.preventDefault();if(event.pointerType==='pen')lastPen=Date.now();const points=event.getCoalescedEvents?.()||[];for(const point of points.length?points:[event])addPoint(point);drawSample(canvas,drag.strokes);});
  canvas.addEventListener('pointerup',event=>{if(!drag||event.pointerId!==drag.pointerId)return;event.preventDefault();addPoint(event);const completed=drag;drag=null;if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);saveStrokes(completed.slot,completed.strokes);});
  canvas.addEventListener('pointercancel',event=>{if(drag?.pointerId===event.pointerId){drag=null;renderSamples();toast('The interrupted stroke was not saved. Your earlier strokes are still here.');}});

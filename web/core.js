@@ -1,3 +1,4 @@
+import {getInkOutlines,encodeOutlines} from './ink-outline.js';
 export const GROUPS = {
   lower: 'abcdefghijklmnopqrstuvwxyz',
   upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
@@ -37,7 +38,7 @@ export function chooseSample(samples, random, previous=-1){
 }
 export function glyphBounds(sample){
   const bounds={minX:160,maxX:0,minY:160,maxY:0};
-  for(const stroke of sample.strokes)for(const [x,y] of stroke){bounds.minX=Math.min(bounds.minX,x);bounds.maxX=Math.max(bounds.maxX,x);bounds.minY=Math.min(bounds.minY,y);bounds.maxY=Math.max(bounds.maxY,y);}
+  for(const stroke of (getInkOutlines(sample)||sample.strokes))for(const [x,y] of stroke){bounds.minX=Math.min(bounds.minX,x);bounds.maxX=Math.max(bounds.maxX,x);bounds.minY=Math.min(bounds.minY,y);bounds.maxY=Math.max(bounds.maxY,y);}
   return bounds;
 }
 export function validateProfile(value){
@@ -55,6 +56,11 @@ export function validateProfile(value){
           return point;
         });
       }).filter(s=>s.length);
+      if(sample.outlines!==undefined||sample.outlineData!==undefined){
+        const raw=getInkOutlines(sample);if(!Array.isArray(raw)||!raw.length||raw.length>256)throw Error('A handwriting outline is invalid.');
+        let count=0;const outlines=raw.map(loop=>{if(!Array.isArray(loop)||loop.length<4||(count+=loop.length)>16000)throw Error('A handwriting outline is invalid.');return loop.map(point=>{if(!Array.isArray(point)||point.length!==2||point.some(v=>!Number.isFinite(v)||v<0||v>160))throw Error('A handwriting outline point is invalid.');return point;});});
+        return{strokes,outlineData:encodeOutlines(outlines),inkVersion:2};
+      }
       return strokes.length?{strokes}:null;
     });
   }

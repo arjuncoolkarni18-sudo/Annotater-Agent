@@ -17,6 +17,8 @@ export function normalizedGlyphMetrics(ch,sample,size){
  let scaleY=size*p.height/Math.max(1,rawH),scaleX=scaleY;
  if(p.targetWidth&&rawW>0){scaleX=size*p.targetWidth/rawW;scaleY=Math.min(scaleX,scaleY);}
  scaleX=Math.min(scaleX,size*p.maxWidth/Math.max(1,rawW));
+ // Preserve the original ink aspect ratio instead of squeezing wide letters.
+ scaleY=Math.min(scaleY,scaleX);
  const inkWidth=rawW*scaleX,inkHeight=rawH*scaleY,top=size*p.bottom-inkHeight;
  return{bounds,scaleX,scaleY,inkWidth,inkHeight,top,ascent:Math.max(0,-top),descent:Math.max(0,top+inkHeight),width:Math.max(size*.12,inkWidth)+size*.1};
 }
