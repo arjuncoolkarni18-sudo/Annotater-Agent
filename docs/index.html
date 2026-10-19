@@ -146,7 +146,8 @@ function validateProfile(value){
       if(sample.outlines!==undefined||sample.outlineData!==undefined){
         const raw=getInkOutlines(sample);if(!Array.isArray(raw)||!raw.length||raw.length>256)throw Error('A handwriting outline is invalid.');
         let count=0;const outlines=raw.map(loop=>{if(!Array.isArray(loop)||loop.length<4||(count+=loop.length)>16000)throw Error('A handwriting outline is invalid.');return loop.map(point=>{if(!Array.isArray(point)||point.length!==2||point.some(v=>!Number.isFinite(v)||v<0||v>160))throw Error('A handwriting outline point is invalid.');return point;});});
-        return{strokes,outlineData:encodeOutlines(outlines),inkVersion:2};
+        if(sample.sourceBaseline!==undefined&&(!Number.isFinite(sample.sourceBaseline)||sample.sourceBaseline<0||sample.sourceBaseline>160))throw Error('Invalid handwriting baseline.');
+        return{strokes,outlineData:encodeOutlines(outlines),inkVersion:2,...(sample.sourceBaseline!==undefined?{sourceBaseline:sample.sourceBaseline}:{})};
       }
       return strokes.length?{strokes}:null;
     });
@@ -171,8 +172,16 @@ function characterProportions(ch){
  if(/[a-z]/.test(ch))return{height:.62,bottom:0,maxWidth:/[mw]/.test(ch)?1.25:1};
  return{height:.9,bottom:0,maxWidth:/[MW%&]/.test(ch)?1.35:1.1};
 }
-function normalizedGlyphMetrics(ch,sample,size){
+function profileInkCalibration(profile){
+ const heights=[];for(const ch of 'aceimnorsuvwxz')for(const s of profile.samples[ch]||[]){if(s?.outlineData&&s.sourceBaseline!==undefined){const b=glyphBounds(s),h=b.maxY-b.minY;if(h>5)heights.push(h);}}
+ heights.sort((a,b)=>a-b);return heights.length?heights[Math.floor(heights.length/2)]:55;
+}
+function normalizedGlyphMetrics(ch,sample,size,bodyHeight=55){
  const bounds=glyphBounds(sample),rawH=bounds.maxY-bounds.minY,rawW=bounds.maxX-bounds.minX,p=characterProportions(ch);
+ if(sample.outlineData&&sample.sourceBaseline!==undefined){
+  const scale=size*.62/Math.max(5,bodyHeight),inkWidth=rawW*scale,inkHeight=rawH*scale,top=(bounds.minY-sample.sourceBaseline)*scale;
+  return{bounds,scaleX:scale,scaleY:scale,inkWidth,inkHeight,top,ascent:Math.max(0,-top),descent:Math.max(0,top+inkHeight),width:Math.max(size*.12,inkWidth)+size*.1};
+ }
  let scaleY=size*p.height/Math.max(1,rawH),scaleX=scaleY;
  if(p.targetWidth&&rawW>0){scaleX=size*p.targetWidth/rawW;scaleY=Math.min(scaleX,scaleY);}
  scaleX=Math.min(scaleX,size*p.maxWidth/Math.max(1,rawW));
@@ -184,6 +193,7 @@ function normalizedGlyphMetrics(ch,sample,size){
 
 function renderNote(text,{style='hand',fontFamily='sans',size=16,color='#303a50',variation=.35,seed=1,width=220,profile={samples:{}},handwriting,resolution=3}={}){
   profile=handwriting||profile;
+  const calibration=profileInkCalibration(profile);
   const random=randomGenerator(seed),last={},canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
   const padding=5,usable=width-padding*2,lines=[[]];let lineWidth=0;
   ctx.font=style==='hand'?`${size*1.18}px StarterHand`:`${size}px ${{sans:'MarginSans',serif:'MarginSerif',mono:'MarginMono'}[fontFamily]||'MarginSans'}`;
@@ -192,7 +202,7 @@ function renderNote(text,{style='hand',fontFamily='sans',size=16,color='#303a50'
     if(ch===' ')return{ch,width:size*.29};
     const variants=style==='hand'?(profile.samples[ch]||[]):[],idx=chooseSample(variants,random,last[ch]);last[ch]=idx;
     const sample=idx<0?null:variants[idx];
-    if(sample){return{ch,sample,...normalizedGlyphMetrics(ch,sample,size),rotation:(random()-.5)*.035*variation,jitter:(random()-.5)*size*.05*variation};}
+    if(sample){return{ch,sample,...normalizedGlyphMetrics(ch,sample,size,calibration),rotation:sample.outlineData?0:(random()-.5)*.035*variation,jitter:sample.outlineData?0:(random()-.5)*size*.05*variation};}
     return{ch,width:ctx.measureText(ch).width+(style==='hand'?size*.02:0),rotation:style==='hand'?(random()-.5)*.04*variation:0,jitter:style==='hand'?(random()-.5)*size*.06*variation:0};
   }
   const words=text.replace(/\r/g,'').split(/(\n| +)/);

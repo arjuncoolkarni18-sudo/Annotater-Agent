@@ -59,7 +59,8 @@ export function validateProfile(value){
       if(sample.outlines!==undefined||sample.outlineData!==undefined){
         const raw=getInkOutlines(sample);if(!Array.isArray(raw)||!raw.length||raw.length>256)throw Error('A handwriting outline is invalid.');
         let count=0;const outlines=raw.map(loop=>{if(!Array.isArray(loop)||loop.length<4||(count+=loop.length)>16000)throw Error('A handwriting outline is invalid.');return loop.map(point=>{if(!Array.isArray(point)||point.length!==2||point.some(v=>!Number.isFinite(v)||v<0||v>160))throw Error('A handwriting outline point is invalid.');return point;});});
-        return{strokes,outlineData:encodeOutlines(outlines),inkVersion:2};
+        if(sample.sourceBaseline!==undefined&&(!Number.isFinite(sample.sourceBaseline)||sample.sourceBaseline<0||sample.sourceBaseline>160))throw Error('Invalid handwriting baseline.');
+        return{strokes,outlineData:encodeOutlines(outlines),inkVersion:2,...(sample.sourceBaseline!==undefined?{sourceBaseline:sample.sourceBaseline}:{})};
       }
       return strokes.length?{strokes}:null;
     });

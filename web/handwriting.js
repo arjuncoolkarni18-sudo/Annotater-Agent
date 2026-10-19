@@ -1,8 +1,9 @@
 import {paintOutline,outlinePdf} from './ink-outline.js';
 import {chooseSample,glyphBounds,randomGenerator,coverage} from './core.js';
-import {normalizedGlyphMetrics} from './handwriting-metrics.js';
+import {normalizedGlyphMetrics,profileInkCalibration} from './handwriting-metrics.js';
 export function renderNote(text,{style='hand',fontFamily='sans',size=16,color='#303a50',variation=.35,seed=1,width=220,profile={samples:{}},handwriting,resolution=3}={}){
   profile=handwriting||profile;
+  const calibration=profileInkCalibration(profile);
   const random=randomGenerator(seed),last={},canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
   const padding=5,usable=width-padding*2,lines=[[]];let lineWidth=0;
   ctx.font=style==='hand'?`${size*1.18}px StarterHand`:`${size}px ${{sans:'MarginSans',serif:'MarginSerif',mono:'MarginMono'}[fontFamily]||'MarginSans'}`;
@@ -11,7 +12,7 @@ export function renderNote(text,{style='hand',fontFamily='sans',size=16,color='#
     if(ch===' ')return{ch,width:size*.29};
     const variants=style==='hand'?(profile.samples[ch]||[]):[],idx=chooseSample(variants,random,last[ch]);last[ch]=idx;
     const sample=idx<0?null:variants[idx];
-    if(sample){return{ch,sample,...normalizedGlyphMetrics(ch,sample,size),rotation:(random()-.5)*.035*variation,jitter:(random()-.5)*size*.05*variation};}
+    if(sample){return{ch,sample,...normalizedGlyphMetrics(ch,sample,size,calibration),rotation:sample.outlineData?0:(random()-.5)*.035*variation,jitter:sample.outlineData?0:(random()-.5)*size*.05*variation};}
     return{ch,width:ctx.measureText(ch).width+(style==='hand'?size*.02:0),rotation:style==='hand'?(random()-.5)*.04*variation:0,jitter:style==='hand'?(random()-.5)*size*.06*variation:0};
   }
   const words=text.replace(/\r/g,'').split(/(\n| +)/);

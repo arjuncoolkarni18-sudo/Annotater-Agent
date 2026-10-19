@@ -8,14 +8,17 @@ export function fitTextBox({x,y,width,maxHeight,size,minSize=8,measure}){
  const actual=Math.floor(low*10)/10,result=fits(actual)||best;
  return{x,y,width,height:result.height,size:actual,result};
 }
-export function fitAnswer({x,y,width,pageWidth,pageHeight,size,obstacles=[],measure,margin=18}){
+export function fitAnswer({x,y,width,pageWidth,pageHeight,size,obstacles=[],raster,measure,margin=18}){
  const left=Math.max(margin,Math.min(pageWidth-margin-50,x)),w=Math.max(30,Math.min(width,pageWidth-margin-left));
  let top=Math.max(margin,y);const relevant=obstacles.filter(b=>b.x<left+w+3&&b.x+b.width>left-3);
  // If an estimated anchor intersects a prompt, move just below that prompt.
  for(let pass=0;pass<relevant.length+1;pass++){const hit=relevant.find(b=>b.y-3<=top&&b.y+b.height+3>top);if(!hit)break;top=hit.y+hit.height+4;}
  if(top>=pageHeight-margin)return null;
  const next=Math.min(pageHeight-margin,...relevant.filter(b=>b.y>=top).map(b=>b.y-4));
- return fitTextBox({x:left,y:top,width:w,maxHeight:next-top,size,measure});
+ const maxHeight=raster?Math.min(next-top,raster.availableHeight(left,top,w,next-top)):next-top;
+ const fit=fitTextBox({x:left,y:top,width:w,maxHeight,size:Math.min(size,16),measure});
+ if(fit&&(obstacles.some(b=>fit.x<b.x+b.width&&fit.x+fit.width>b.x&&fit.y<b.y+b.height&&fit.y+fit.height>b.y)||raster?.collides(fit)))return null;
+ return fit;
 }
 export function textObstacles(items,viewport){
  return items.filter(i=>typeof i.str==='string'&&i.str.trim()&&!/^[_\-.\s]+$/.test(i.str)).map(i=>{
