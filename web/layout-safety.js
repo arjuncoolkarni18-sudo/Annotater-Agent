@@ -4,7 +4,18 @@ export function rasterSafety(rgba,width,height,pageWidth,pageHeight){
  const cell=2,cols=Math.ceil(pageWidth/cell),rows=Math.ceil(pageHeight/cell),mask=new Uint8Array(cols*rows);
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){const i=(y*width+x)*4;if(rgba[i+3]>100&&.2126*rgba[i]+.7152*rgba[i+1]+.0722*rgba[i+2]<205){const col=Math.min(cols-1,Math.floor(x/width*pageWidth/cell)),row=Math.min(rows-1,Math.floor(y/height*pageHeight/cell));mask[row*cols+col]=1;}}
  const range=b=>({x0:Math.max(0,Math.floor(b.x/cell)),y0:Math.max(0,Math.floor(b.y/cell)),x1:Math.min(cols,Math.ceil((b.x+b.width)/cell)),y1:Math.min(rows,Math.ceil((b.y+b.height)/cell))});
- return{collides(b){const r=range(b);for(let y=r.y0;y<r.y1;y++)for(let x=r.x0;x<r.x1;x++)if(mask[y*cols+x])return true;return false;},availableHeight(x,y,w,max){const r=range({x,y,width:w,height:max});for(let row=r.y0;row<r.y1;row++)for(let col=r.x0;col<r.x1;col++)if(mask[row*cols+col])return Math.max(0,row*cell-y-2);return max;}};
+ return{blankRegions(x,y,preferredWidth,maxBottom){
+  const regions=[],start=Math.max(9,Math.ceil(y/cell)),end=Math.min(rows-9,Math.floor(Math.min(maxBottom,y+64)/cell));
+  for(let row=start;row<=end;row+=3){let run=-1;
+   for(let col=9;col<=cols-9;col++){let clear=col<cols-9;for(let band=0;clear&&band<7;band++)if(mask[(row+band)*cols+col])clear=false;
+    if(clear&&run<0)run=col;
+    if(!clear&&run>=0){const left=run*cell+3,right=col*cell-3,candidate=Math.max(left,x),xx=candidate<right-50?candidate:left;
+     if(right-xx>=50&&Math.abs(xx-x)<=80){const available=this.availableHeight(xx,row*cell,right-xx,Math.max(0,maxBottom-row*cell));if(available>=16)regions.push({x:xx,y:row*cell,width:right-xx,maxHeight:available});}run=-1;
+    }
+   }
+  }
+  return regions.sort((a,b)=>(Math.abs(a.x-x)+Math.abs(a.y-y)*2)-(Math.abs(b.x-x)+Math.abs(b.y-y)*2)).slice(0,16);
+ },collides(b){const r=range(b);for(let y=r.y0;y<r.y1;y++)for(let x=r.x0;x<r.x1;x++)if(mask[y*cols+x])return true;return false;},availableHeight(x,y,w,max){const r=range({x,y,width:w,height:max});for(let row=r.y0;row<r.y1;row++)for(let col=r.x0;col<r.x1;col++)if(mask[row*cols+col])return Math.max(0,row*cell-y-2);return max;}};
 }
 export function validateNoteLayout(notes,{pageWidth,pageHeight,obstacles=[],raster,margin=8}){
  const issues=[];for(let i=0;i<notes.length;i++){const n=notes[i];if(n.kind!=='note')continue;

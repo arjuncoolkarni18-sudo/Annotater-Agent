@@ -9,16 +9,29 @@ export function fitTextBox({x,y,width,maxHeight,size,minSize=8,measure}){
  return{x,y,width,height:result.height,size:actual,result};
 }
 export function fitAnswer({x,y,width,pageWidth,pageHeight,size,obstacles=[],raster,measure,margin=18}){
- const left=Math.max(margin,Math.min(pageWidth-margin-50,x)),w=Math.max(30,Math.min(width,pageWidth-margin-left));
+ const left=Math.max(margin,Math.min(pageWidth-margin-50,x)),w=Math.max(30,Math.min(width,pageWidth-margin-left)),preferred=Math.min(size,14);
  let top=Math.max(margin,y);const relevant=obstacles.filter(b=>b.x<left+w+3&&b.x+b.width>left-3);
- // If an estimated anchor intersects a prompt, move just below that prompt.
  for(let pass=0;pass<relevant.length+1;pass++){const hit=relevant.find(b=>b.y-3<=top&&b.y+b.height+3>top);if(!hit)break;top=hit.y+hit.height+4;}
  if(top>=pageHeight-margin)return null;
- const next=Math.min(pageHeight-margin,...relevant.filter(b=>b.y>=top).map(b=>b.y-4));
- const maxHeight=raster?Math.min(next-top,raster.availableHeight(left,top,w,next-top)):next-top;
- const fit=fitTextBox({x:left,y:top,width:w,maxHeight,size:Math.min(size,16),measure});
- if(fit&&(obstacles.some(b=>fit.x<b.x+b.width&&fit.x+fit.width>b.x&&fit.y<b.y+b.height&&fit.y+fit.height>b.y)||raster?.collides(fit)))return null;
- return fit;
+ const candidates=[];
+ function add(b){
+  b.x=Math.max(margin,b.x);b.width=Math.min(b.width,pageWidth-margin-b.x);b.maxHeight=Math.min(b.maxHeight,pageHeight-margin-b.y);
+  for(const o of obstacles){if(o.x<b.x+b.width+2&&o.x+o.width>b.x-2){if(o.y<b.y&&o.y+o.height+2>b.y)return;if(o.y>=b.y)b.maxHeight=Math.min(b.maxHeight,o.y-b.y-4);}}
+  if(raster)b.maxHeight=Math.min(b.maxHeight,raster.availableHeight(b.x,b.y,b.width,b.maxHeight));
+  if(b.width>=30&&b.maxHeight>=16)candidates.push(b);
+ }
+ // Use a wider safe region before reducing handwriting size.
+ for(const width of new Set([w,Math.min(pageWidth-margin-left,w*1.3),pageWidth-margin-left]))add({x:left,y:top,width,maxHeight:pageHeight-margin-top});
+ // Search only near the question anchor and before its next substantial prompt.
+ const questionEnd=Math.min(pageHeight-margin,...relevant.filter(b=>b.y>top+12&&b.width>Math.min(w*.5,100)).map(b=>b.y-4));
+ for(const region of raster?.blankRegions?.(left,top,w,questionEnd)||[])add(region);
+ let best=null,bestScore=-Infinity;const cache=new Map(),cachedMeasure=(s,w)=>{const key=`${s.toFixed(3)}:${w.toFixed(2)}`;if(!cache.has(key))cache.set(key,measure(s,w));return cache.get(key);};
+ for(const region of candidates){const fit=fitTextBox({...region,size:preferred,measure:cachedMeasure});if(!fit)continue;
+  if(obstacles.some(b=>fit.x<b.x+b.width+1&&fit.x+fit.width+1>b.x&&fit.y<b.y+b.height+1&&fit.y+fit.height+1>b.y)||raster?.collides(fit))continue;
+  const score=fit.size*100-Math.abs(fit.x-left)*.2-Math.abs(fit.y-top)*.8-Math.max(0,fit.width-w)*.015;
+  if(score>bestScore){best=fit;bestScore=score;}
+ }
+ return best?{...best,autoFit:{preferredSize:preferred,actualSize:best.size,reduced:best.size<preferred-.1}}:null;
 }
 export function textObstacles(items,viewport){
  return items.filter(i=>typeof i.str==='string'&&i.str.trim()&&!/^[_\-.\s]+$/.test(i.str)).map(i=>{
