@@ -19,7 +19,9 @@ export function profileInkCalibration(profile){
 export function normalizedGlyphMetrics(ch,sample,size,bodyHeight=55){
  const bounds=glyphBounds(sample),rawH=bounds.maxY-bounds.minY,rawW=bounds.maxX-bounds.minX,p=characterProportions(ch);
  if(sample.outlineData&&sample.sourceBaseline!==undefined){
-  const scale=size*.62/Math.max(5,bodyHeight),inkWidth=rawW*scale,inkHeight=rawH*scale,top=(bounds.minY-sample.sourceBaseline)*scale;
+  // Align visible ink to a shared writing baseline, independent of template placement.
+  // Descenders and raised punctuation retain their intentional offsets.
+  const scale=size*.62/Math.max(5,bodyHeight),inkWidth=rawW*scale,inkHeight=rawH*scale,top=size*p.bottom-inkHeight;
   return{bounds,scaleX:scale,scaleY:scale,inkWidth,inkHeight,top,ascent:Math.max(0,-top),descent:Math.max(0,top+inkHeight),width:Math.max(size*.12,inkWidth)+size*.1};
  }
  let scaleY=size*p.height/Math.max(1,rawH),scaleX=scaleY;

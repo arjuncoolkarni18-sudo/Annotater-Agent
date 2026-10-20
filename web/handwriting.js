@@ -9,13 +9,13 @@ export function renderNote(text,{style='hand',fontFamily='sans',size=16,color='#
   ctx.font=style==='hand'?`${size*1.18}px StarterHand`:`${size}px ${{sans:'MarginSans',serif:'MarginSerif',mono:'MarginMono'}[fontFamily]||'MarginSans'}`;
   const font=ctx.font;
   function makeGlyph(ch){
-    if(ch===' ')return{ch,width:size*.29};
+    if(ch===' ')return{ch,width:size*(style==='hand'?.5:.29)};
     const variants=style==='hand'?(profile.samples[ch]||[]):[],idx=chooseSample(variants,random,last[ch]);last[ch]=idx;
     const sample=idx<0?null:variants[idx];
-    if(sample){return{ch,sample,...normalizedGlyphMetrics(ch,sample,size,calibration),rotation:sample.outlineData?0:(random()-.5)*.035*variation,jitter:sample.outlineData?0:(random()-.5)*size*.05*variation};}
-    return{ch,width:ctx.measureText(ch).width+(style==='hand'?size*.02:0),rotation:style==='hand'?(random()-.5)*.04*variation:0,jitter:style==='hand'?(random()-.5)*size*.06*variation:0};
+    if(sample){return{ch,sample,...normalizedGlyphMetrics(ch,sample,size,calibration),rotation:0,jitter:0};}
+    return{ch,width:ctx.measureText(ch).width+(style==='hand'?size*.02:0),rotation:0,jitter:0};
   }
-  const words=text.replace(/\r/g,'').split(/(\n| +)/);
+  const words=text.replace(/\r\n?/g,'\n').replace(/[^\S\n]/gu,' ').split(/(\n| +)/);
   function newline(){lines.push([]);lineWidth=0;}
   for(const word of words){
     if(word==='\n'){newline();continue;}

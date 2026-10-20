@@ -179,7 +179,9 @@ function profileInkCalibration(profile){
 function normalizedGlyphMetrics(ch,sample,size,bodyHeight=55){
  const bounds=glyphBounds(sample),rawH=bounds.maxY-bounds.minY,rawW=bounds.maxX-bounds.minX,p=characterProportions(ch);
  if(sample.outlineData&&sample.sourceBaseline!==undefined){
-  const scale=size*.62/Math.max(5,bodyHeight),inkWidth=rawW*scale,inkHeight=rawH*scale,top=(bounds.minY-sample.sourceBaseline)*scale;
+  // Align visible ink to a shared writing baseline, independent of template placement.
+  // Descenders and raised punctuation retain their intentional offsets.
+  const scale=size*.62/Math.max(5,bodyHeight),inkWidth=rawW*scale,inkHeight=rawH*scale,top=size*p.bottom-inkHeight;
   return{bounds,scaleX:scale,scaleY:scale,inkWidth,inkHeight,top,ascent:Math.max(0,-top),descent:Math.max(0,top+inkHeight),width:Math.max(size*.12,inkWidth)+size*.1};
  }
  let scaleY=size*p.height/Math.max(1,rawH),scaleX=scaleY;
@@ -199,13 +201,13 @@ function renderNote(text,{style='hand',fontFamily='sans',size=16,color='#303a50'
   ctx.font=style==='hand'?`${size*1.18}px StarterHand`:`${size}px ${{sans:'MarginSans',serif:'MarginSerif',mono:'MarginMono'}[fontFamily]||'MarginSans'}`;
   const font=ctx.font;
   function makeGlyph(ch){
-    if(ch===' ')return{ch,width:size*.29};
+    if(ch===' ')return{ch,width:size*(style==='hand'?.5:.29)};
     const variants=style==='hand'?(profile.samples[ch]||[]):[],idx=chooseSample(variants,random,last[ch]);last[ch]=idx;
     const sample=idx<0?null:variants[idx];
-    if(sample){return{ch,sample,...normalizedGlyphMetrics(ch,sample,size,calibration),rotation:sample.outlineData?0:(random()-.5)*.035*variation,jitter:sample.outlineData?0:(random()-.5)*size*.05*variation};}
-    return{ch,width:ctx.measureText(ch).width+(style==='hand'?size*.02:0),rotation:style==='hand'?(random()-.5)*.04*variation:0,jitter:style==='hand'?(random()-.5)*size*.06*variation:0};
+    if(sample){return{ch,sample,...normalizedGlyphMetrics(ch,sample,size,calibration),rotation:0,jitter:0};}
+    return{ch,width:ctx.measureText(ch).width+(style==='hand'?size*.02:0),rotation:0,jitter:0};
   }
-  const words=text.replace(/\r/g,'').split(/(\n| +)/);
+  const words=text.replace(/\r\n?/g,'\n').replace(/[^\S\n]/gu,' ').split(/(\n| +)/);
   function newline(){lines.push([]);lineWidth=0;}
   for(const word of words){
     if(word==='\n'){newline();continue;}
